@@ -221,6 +221,16 @@ class ZhipuService {
       throw new AppError(500, error.message || 'Excel处理失败');
     }
   }
+
+  // 视频生成 (预留接口)
+  async generateVideo(prompt: string, duration: number = 5): Promise<any> {
+    this.checkConfig();
+    
+    logger.info('Video generation request', { prompt, duration });
+
+    // 视频生成功能暂未开放
+    throw new AppError(501, '视频生成功能暂未开放，请等待后续更新');
+  }
 }
 
 // 导出单例实例
