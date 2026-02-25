@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ai-platform-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    networks:
+      - ai-platform
+
+  server:
+    image: ghcr.io/corps-cy/ai-service-platform-server:latest
+    container_name: ai-platform-server
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:80}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - ai-platform
+
+  client:
+    image: ghcr.io/corps-cy/ai-service-platform-client:latest
+    container_name: ai-platform-client
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=${API_URL:-http://localhost:3001/api}
+    depends_on:
+      - server
+    restart: unless-stopped
+    networks:
+      - ai-platform
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  ai-platform:
+    driver: bridge
