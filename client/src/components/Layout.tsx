@@ -25,6 +25,10 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
     { path: '/pricing', label: '价格' },
   ];
 
+  const adminNavItems = [
+    { path: '/admin', label: '管理后台', adminOnly: true },
+  ];
+
   React.useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -78,6 +82,12 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
                     className="text-sm font-medium text-gray-600 hover:text-[#6366F1] transition-colors duration-200"
                   >
                     仪表板
+                  </Link>
+                  <Link
+                    to="/admin"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors duration-200 flex items-center"
+                  >
+                    🎛️ 管理后台
                   </Link>
                   <button
                     onClick={onLogout}
@@ -143,6 +153,13 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
                     className="block px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
                   >
                     仪表板
+                  </Link>
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block px-4 py-3 rounded-xl text-sm font-medium text-indigo-600 hover:bg-indigo-50 transition-colors duration-200"
+                  >
+                    🎛️ 管理后台
                   </Link>
                   <button
                     onClick={() => {

@@ -2,6 +2,8 @@ import Queue, { Job, QueueOptions } from 'bull';
 import ioredis from 'ioredis';
 import logger from '../utils/logger.js';
 import { zhipuService } from '../services/zhipu.service.js';
+import { getDatabase } from '../models/database.js';
+import emailService from '../services/email.service.js';
 
 // Redis配置
 const redisConfig = {
@@ -55,10 +57,30 @@ export interface TaskJobData {
 
 // 邮件任务类型定义
 export interface EmailJobData {
-  to: string;
-  subject: string;
-  html: string;
+  type: 'order-created' | 'payment-success' | 'task-completed' | 'subscription-expiring' | 'welcome' | 'password-reset' | 'refund-success';
+  to?: string;
+  subject?: string;
+  html?: string;
   text?: string;
+  // 扩展字段
+  taskId?: string;
+  userId?: number;
+  email?: string;
+  taskType?: string;
+  resultSummary?: string;
+  orderNo?: string;
+  amount?: number;
+  paymentMethod?: string;
+  description?: string;
+  productType?: string;
+  productName?: string;
+  planName?: string;
+  expiresAt?: Date;
+  daysLeft?: number;
+  username?: string;
+  resetLink?: string;
+  refundAmount?: number;
+  refundReason?: string;
 }
 
 // 处理AI任务
@@ -97,6 +119,49 @@ taskQueue.process('ai-task', async (job: Job<TaskJobData>) => {
 
     logger.info('AI task completed', { taskId, type });
 
+    // 更新数据库中的任务状态
+    const db = getDatabase();
+    try {
+      db.prepare(
+        'UPDATE tasks SET status = ?, output = ?, completed_at = CURRENT_TIMESTAMP WHERE task_id = ?'
+      ).run('completed', JSON.stringify(result), taskId);
+    } catch (dbError: any) {
+      logger.error('Failed to update task status in database', {
+        taskId,
+        error: dbError.message,
+      });
+    }
+
+    // 获取用户邮箱并发送通知邮件
+    try {
+      const user = db.prepare('SELECT email, nickname FROM users WHERE id = ?').get(userId) as any;
+      if (user?.email) {
+        // 生成结果摘要
+        let resultSummary = '任务处理完成';
+        if (type === 'text-gen' && result.choices?.[0]?.message?.content) {
+          resultSummary = result.choices[0].message.content.substring(0, 200) + '...';
+        } else if (type === 'image-gen' && result.data?.length) {
+          resultSummary = `已生成 ${result.data.length} 张图片`;
+        }
+
+        // 将邮件任务添加到队列
+        await emailQueue.add('send-email', {
+          type: 'task-completed',
+          taskId,
+          userId,
+          email: user.email,
+          taskType: type,
+          resultSummary,
+        });
+      }
+    } catch (emailError: any) {
+      logger.error('Failed to queue task completion email', {
+        taskId,
+        userId,
+        error: emailError.message,
+      });
+    }
+
     return {
       taskId,
       type,
@@ -110,21 +175,115 @@ taskQueue.process('ai-task', async (job: Job<TaskJobData>) => {
       error: error.message,
     });
 
+    // 更新数据库中的任务状态为失败
+    const db = getDatabase();
+    try {
+      db.prepare(
+        'UPDATE tasks SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE task_id = ?'
+      ).run('failed', taskId);
+    } catch (dbError: any) {
+      logger.error('Failed to update task status in database', {
+        taskId,
+        error: dbError.message,
+      });
+    }
+
     throw error;
   }
 });
 
 // 处理邮件任务
 emailQueue.process('send-email', async (job: Job<EmailJobData>) => {
-  const { to, subject, html, text } = job.data;
+  const data = job.data;
 
-  logger.info('Sending email', { to, subject });
+  logger.info('Processing email task', { type: data.type, email: data.email });
 
-  // 这里可以集成邮件服务，如 nodemailer
-  // 暂时只记录日志
-  logger.info('Email sent', { to, subject, bodyLength: html.length });
+  try {
+    switch (data.type) {
+      case 'order-created':
+        if (data.email && data.orderNo && data.amount && data.paymentMethod && data.description) {
+          await emailService.sendOrderCreatedEmail(
+            data.email,
+            data.orderNo,
+            data.amount,
+            data.paymentMethod,
+            data.description
+          );
+        }
+        break;
 
-  return { to, subject, sent: true };
+      case 'payment-success':
+        if (data.email && data.orderNo && data.amount && data.productType) {
+          await emailService.sendPaymentSuccessEmail(
+            data.email,
+            data.orderNo,
+            data.amount,
+            data.productType,
+            data.productName || ''
+          );
+        }
+        break;
+
+      case 'task-completed':
+        if (data.email && data.taskId && data.taskType && data.resultSummary) {
+          await emailService.sendTaskCompletedEmail(
+            data.email,
+            data.taskId,
+            data.taskType,
+            data.resultSummary
+          );
+        }
+        break;
+
+      case 'subscription-expiring':
+        if (data.email && data.planName && data.expiresAt && data.daysLeft) {
+          await emailService.sendSubscriptionExpiringEmail(
+            data.email,
+            data.planName,
+            data.expiresAt,
+            data.daysLeft
+          );
+        }
+        break;
+
+      case 'welcome':
+        if (data.email && data.username) {
+          await emailService.sendWelcomeEmail(data.email, data.username);
+        }
+        break;
+
+      case 'password-reset':
+        if (data.email && data.resetLink) {
+          await emailService.sendPasswordResetEmail(data.email, data.resetLink);
+        }
+        break;
+
+      case 'refund-success':
+        if (data.email && data.orderNo && data.refundAmount && data.refundReason) {
+          await emailService.sendRefundSuccessEmail(
+            data.email,
+            data.orderNo,
+            data.refundAmount,
+            data.refundReason
+          );
+        }
+        break;
+
+      default:
+        logger.warn('Unknown email task type', { type: data.type });
+    }
+
+    logger.info('Email sent successfully', { type: data.type, email: data.email });
+
+    return { type: data.type, sent: true };
+  } catch (error: any) {
+    logger.error('Failed to send email', {
+      type: data.type,
+      email: data.email,
+      error: error.message,
+    });
+    throw error;
+  }
 });
 
 // 添加AI任务到队列

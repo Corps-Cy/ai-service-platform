@@ -11,6 +11,7 @@ import ImageUnderstand from './pages/ImageUnderstand';
 import DocumentProcess from './pages/DocumentProcess';
 import ExcelProcess from './pages/ExcelProcess';
 import Pricing from './pages/Pricing';
+import Admin from './pages/Admin';
 import './App.css';
 
 function App() {
@@ -53,6 +54,10 @@ function App() {
           element={isAuthenticated ? <ExcelProcess /> : <Navigate to="/login" />}
         />
         <Route path="/pricing" element={<Pricing />} />
+        <Route
+          path="/admin"
+          element={isAuthenticated ? <Admin /> : <Navigate to="/login" />}
+        />
       </Routes>
     </Layout>
   );

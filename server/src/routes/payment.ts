@@ -5,6 +5,7 @@ import wechatPay from '../services/wechat-pay.service.js';
 import alipay from '../services/alipay.service.js';
 import logger from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { emailQueue } from '../queue/index.js';
 
 const router = Router();
 
@@ -196,6 +197,33 @@ router.post('/wechat/notify', async (req: Request, res: Response) => {
 
       // 处理套餐或充值
       await handlePaymentSuccess(db, order);
+
+      // 发送支付成功邮件
+      try {
+        const user = db.prepare('SELECT email FROM users WHERE id = ?').get(order.user_id) as any;
+        if (user?.email) {
+          let productName = '';
+          if (order.product_type === 'plan') {
+            const plan = db.prepare('SELECT name FROM plans WHERE id = ?').get(order.product_id) as any;
+            productName = plan?.name || '';
+          }
+
+          await emailQueue.add('send-email', {
+            type: 'payment-success',
+            email: user.email,
+            orderNo: out_trade_no,
+            amount: order.amount,
+            productType: order.product_type,
+            productName,
+          });
+        }
+      } catch (emailError: any) {
+        logger.error('Failed to queue payment success email', {
+          orderNo: out_trade_no,
+          userId: order.user_id,
+          error: emailError.message,
+        });
+      }
     }
 
     res.send('SUCCESS');
@@ -257,6 +285,33 @@ router.post('/alipay/notify', async (req: Request, res: Response) => {
 
       // 处理套餐或充值
       await handlePaymentSuccess(db, order);
+
+      // 发送支付成功邮件
+      try {
+        const user = db.prepare('SELECT email FROM users WHERE id = ?').get(order.user_id) as any;
+        if (user?.email) {
+          let productName = '';
+          if (order.product_type === 'plan') {
+            const plan = db.prepare('SELECT name FROM plans WHERE id = ?').get(order.product_id) as any;
+            productName = plan?.name || '';
+          }
+
+          await emailQueue.add('send-email', {
+            type: 'payment-success',
+            email: user.email,
+            orderNo: out_trade_no,
+            amount: order.amount,
+            productType: order.product_type,
+            productName,
+          });
+        }
+      } catch (emailError: any) {
+        logger.error('Failed to queue payment success email', {
+          orderNo: out_trade_no,
+          userId: order.user_id,
+          error: emailError.message,
+        });
+      }
     }
 
     res.send('success');
