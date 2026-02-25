@@ -22,15 +22,7 @@ services:
 
   # 后端API服务
   server:
-    # 使用本地构建（首次部署）
-    # 如果使用GitHub Container Registry镜像，替换为：
-    # image: ghcr.io/corps-cy/ai-service-platform-server:latest
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-      args:
-        NODE_ENV: production
-    image: ai-platform-server:latest
+    image: ghcr.io/corps-cy/ai-service-platform-server:latest
     container_name: ai-platform-server
     restart: unless-stopped
     ports:
@@ -69,15 +61,7 @@ services:
 
   # 前端Web服务
   client:
-    # 使用本地构建（首次部署）
-    # 如果使用GitHub Container Registry镜像，替换为：
-    # image: ghcr.io/corps-cy/ai-service-platform-client:latest
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: http://localhost:3001/api
-    image: ai-platform-client:latest
+    image: ghcr.io/corps-cy/ai-service-platform-client:latest
     container_name: ai-platform-client
     restart: unless-stopped
     ports:
