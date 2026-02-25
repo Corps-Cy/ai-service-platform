@@ -6,6 +6,34 @@
 - Docker Compose 2.0+
 - 服务器至少 2GB 内存
 - 80 端口和 3001 端口可用
+- Git
+
+## GitHub Actions 自动构建
+
+项目已配置GitHub Actions自动构建Docker镜像。当代码推送到`main`或`develop`分支时，会自动：
+
+1. 构建Server镜像
+2. 构建Client镜像
+3. 推送到GitHub Container Registry (GHCR)
+
+### 更新Personal Access Token
+
+如果遇到workflow权限错误，需要更新GitHub Personal Access Token：
+
+1. 访问 GitHub Settings → Developer settings → Personal access tokens
+2. 创建新Token或更新现有Token
+3. 确保勾选以下权限：
+   - `repo` - 完整仓库访问权限
+   - `workflow` - GitHub Actions工作流权限
+   - `write:packages` - 包写入权限
+4. 更新Git remote中的Token：
+   ```bash
+   git remote set-url origin https://NEW_TOKEN@github.com/Corps-Cy/ai-service-platform.git
+   ```
+
+### 手动触发构建
+
+在GitHub仓库页面，进入Actions → Build and Push Docker Images → Run workflow 可以手动触发构建。
 
 ## 部署步骤
 
@@ -222,8 +250,33 @@ docker-compose -f docker-compose.prod.yml down
 
 ### 更新镜像
 
+#### 使用GitHub Container Registry（推荐）
+
+如果已配置GitHub Actions自动构建，首先修改 `docker-compose.prod.yml` 使用预构建的镜像：
+
+```yaml
+server:
+  image: ghcr.io/corps-cy/ai-service-platform-server:latest
+  # 移除 build 配置
+
+client:
+  image: ghcr.io/corps-cy/ai-service-platform-client:latest
+  # 移除 build 配置
+```
+
+然后拉取最新镜像并重启：
+
 ```bash
 docker-compose -f docker-compose.prod.yml pull
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+#### 本地构建
+
+如果需要本地构建：
+
+```bash
+docker-compose -f docker-compose.prod.yml build
 docker-compose -f docker-compose.prod.yml up -d
 ```
 

@@ -14,7 +14,9 @@ services:
       - ai-platform
 
   server:
-    image: ghcr.io/corps-cy/ai-service-platform-server:latest
+    build:
+      context: ./server
+      dockerfile: Dockerfile
     container_name: ai-platform-server
     ports:
       - "3001:3001"
@@ -38,7 +40,9 @@ services:
       - ai-platform
 
   client:
-    image: ghcr.io/corps-cy/ai-service-platform-client:latest
+    build:
+      context: ./client
+      dockerfile: Dockerfile
     container_name: ai-platform-client
     ports:
       - "80:80"
