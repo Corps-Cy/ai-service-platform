@@ -36,6 +36,11 @@ api.interceptors.response.use(
 );
 
 export const apiService = {
+  // 初始化
+  checkInitStatus: () => api.get('/init/status'),
+  saveInitConfig: (config: any) => api.post('/init/save-config', config),
+  getCurrentConfig: () => api.get('/init/current'),
+
   // 认证
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
@@ -64,8 +69,8 @@ export const apiService = {
   getTask: (taskId: string) => api.get(`/tasks/${taskId}`),
 
   // 支付
-  createOrder: (type: string, productId: string, amount: number, paymentMethod: string) =>
-    api.post('/payment/create', { type, productId, amount, paymentMethod }),
+  createOrder: (type: string, productId: string, amount: number, paymentMethod: string, description?: string) =>
+    api.post('/payment/create', { type, productId, amount, paymentMethod, description }),
   getOrder: (orderNo: string) => api.get(`/payment/order/${orderNo}`),
   getOrders: (limit?: number, offset?: number) =>
     api.get('/payment/orders', { params: { limit, offset } }),

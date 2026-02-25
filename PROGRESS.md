@@ -18,6 +18,7 @@
   - Register.tsx（注册页）
   - Pricing.tsx（定价页）
   - Admin.tsx（管理后台）
+  - InitConfig.tsx（初始化配置页）
   - Layout.tsx（导航栏、页脚）
   - tailwind.config.js（样式配置）
   - index.css（全局样式、Google字体）
@@ -198,8 +199,8 @@
 - ✅ 前端管理页面（完整实现）
   - 概览标签页：统计卡片、任务统计、队列状态、缓存状态、刷新按钮
   - 用户管理标签页：搜索、分页、详情查看、编辑、删除、用户信息、Token信息、订阅信息、订单列表、任务列表
-  - 订单管理标签页：状态筛选、分页、详情查看、状态更新、导出CSV、交易ID复制
-  - 订阅管理标签页：状态筛选、分页、状态更新、到期检查、7天提醒、3天提醒、剩余天数显示、即将到期高亮
+  - 订单管理标签页：筛选、分页、详情查看、状态更新、导出CSV、交易ID复制
+  - 订阅管理标签页：列表展示、状态管理、到期检查、7天提醒、3天提醒、剩余天数显示、即将到期高亮
   - 套餐管理标签页：创建套餐、编辑套餐、删除套餐、启用/禁用、卡片展示、功能列表
 
 - ✅ 导航集成
@@ -237,8 +238,60 @@
   - 创建新套餐
   - 编辑套餐
   - 删除套餐
-  - 启用/禁用套餐
-  - 卡片式展示
+  - 启用/禁用切换
+
+### 9. 初始化配置系统 ⭐⭐⭐
+- ✅ 初始化检测
+  - 自动检测.env文件是否存在
+  - 检查必要配置是否完整
+  - 未配置时自动跳转初始化页面
+
+- ✅ 初始化配置页面
+  - 必需配置：智谱API密钥、JWT密钥、数据库路径、Redis配置
+  - 可选配置：邮件配置（SMTP、端口、用户、密码、发件人）
+  - 可选配置：微信支付配置（AppID、商户号、序列号、私钥）
+  - 可选配置：支付宝配置（AppID、应用私钥、支付宝公钥）
+  - JWT密钥随机生成功能
+  - 表单验证
+  - 配置保存提示
+
+- ✅ 初始化API
+  - GET /api/init/status - 检查配置状态
+  - POST /api/init/save-config - 保存配置
+  - GET /api/init/current - 获取当前配置
+  - 自动创建.env文件
+  - 多路径.env检测
+  - 保存后自动重启提示
+
+- ✅ 路由集成
+  - 添加/init路由
+  - 添加/初始化页面路由
+  - 自动检测并重定向
+  - 初始化后自动跳转
+
+### 10. 部署配置
+- ✅ GitHub Actions工作流
+  - Docker自动构建配置
+  - 多镜像构建（Server + Client）
+  - GitHub Container Registry推送
+  - 标签管理
+
+- ✅ 生产环境配置
+  - docker-compose.prod.yml
+  - Nginx反向代理配置
+  - SSL证书配置指南
+
+- ✅ 部署文档
+  - DEPLOYMENT.md完整指南
+  - 环境变量配置说明
+  - 监控和维护
+  - 故障排查
+
+- ✅ 项目README
+  - 完整功能列表
+  - 技术栈说明
+  - 部署方式
+  - GitHub仓库链接
 
 ---
 
@@ -267,6 +320,7 @@
    - 邮件配置
    - 支付配置
    - 系统参数配置
+   - （可通过初始化页面配置）
 
 4. **数据统计页面**
    - 收入图表
@@ -300,64 +354,87 @@
 - server/src/queue/index.ts（任务队列）
 - server/src/services/cache.service.ts（缓存服务）
 - server/src/routes/admin.ts（管理员路由）
+- server/src/routes/init.ts（初始化路由）
 - client/src/pages/Admin.tsx（管理后台页面）
+- client/src/pages/InitConfig.tsx（初始化配置页）
 
 **配置文件：**
-- docker-compose.yml（添加Redis服务）
-- .env.example（支付、队列、缓存、邮件配置）
+- docker-compose.yml（开发环境）
+- docker-compose.prod.yml（生产环境）
+- .env.example（配置模板）
+- .github/workflows/docker-build.yml（CI/CD）
+
+**文档：**
+- DEPLOYMENT.md（部署指南）
+- README.md（项目说明）
 
 **数据库：**
 - 订单表字段更新
 
 **前端路由：**
 - Admin页面路由
+- InitConfig页面路由
 - 导航栏管理后台入口
 
 ---
 
-## 下一步建议
+## 部署说明
 
-1. **启动开发服务器测试**
-   ```bash
-   cd /home/node/.openclaw/workspace/ai-service-platform/server
-   pnpm dev
-   ```
+### 无需配置直接启动
 
-2. **启动Redis**
-   ```bash
-   # 本地开发
-   redis-server
+项目已支持无需手动配置.env文件：
 
-   # 或使用Docker
-   docker-compose up -d
-   ```
+1. 部署代码到服务器
+2. 启动服务：`docker-compose up -d`
+3. 访问网站，自动跳转到初始化配置页面
+4. 填写必要配置（智谱API密钥、JWT密钥）
+5. 保存配置，服务自动重启
+6. 开始使用
 
-3. **配置环境变量**
-   ```bash
-   # .env 文件中添加
-   ADMIN_EMAILS=admin@example.com
-   EMAIL_HOST=smtp.gmail.com
-   EMAIL_PORT=587
-   EMAIL_USER=your_email@gmail.com
-   EMAIL_PASSWORD=your_app_password
-   WECHAT_APPID=your_wechat_appid
-   WECHAT_MCHID=your_merchant_id
-   ALIPAY_APPID=your_alipay_appid
-   ```
+### 初始化配置步骤
 
-4. **测试完整流程**
-   - 用户注册/登录
-   - 查看套餐
-   - 购买套餐
-   - 支付成功
-   - 查看仪表板
-   - 管理后台管理
+1. **必需配置**：
+   - 智谱AI API密钥（必填）
+   - JWT密钥（必填，可随机生成）
+   - 数据库路径（默认：./data/database.sqlite）
+   - Redis主机和端口（默认：localhost:6379）
 
-5. **二维码生成**
-   - 安装qrcode库
-   - 生成真实支付二维码
-   - 提升用户体验
+2. **可选配置**（可稍后在管理后台配置）：
+   - 邮件配置（SMTP服务器、端口、用户、密码）
+   - 微信支付配置（AppID、商户号、私钥）
+   - 支付宝配置（AppID、应用私钥、支付宝公钥）
+
+3. **配置保存后**：
+   - 系统自动创建.env文件
+   - 服务自动重启
+   - 自动跳转到首页
 
 ---
 
-更新时间：2026-02-25 06:30
+## 快速开始
+
+```bash
+# 1. 克隆代码
+git clone https://github.com/Corps-Cy/ai-service-platform.git
+cd ai-service-platform
+
+# 2. 启动服务
+docker-compose up -d
+
+# 3. 访问网站
+http://your-server-ip
+
+# 4. 完成初始化配置
+# - 填写智谱API密钥
+# - 生成或输入JWT密钥
+# - （可选）配置邮件和支付
+# - 点击"保存配置"
+
+# 5. 注册并登录
+# - 访问/register创建账号
+# - 登录后开始使用
+```
+
+---
+
+更新时间：2026-02-25 07:15
