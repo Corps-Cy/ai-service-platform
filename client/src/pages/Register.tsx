@@ -37,11 +37,7 @@ const Register: React.FC = () => {
     setLoading(true);
 
     try {
-      await apiService.register({
-        email: formData.email,
-        password: formData.password,
-        nickname: formData.nickname
-      });
+      await apiService.register(formData.email, formData.password, formData.nickname);
       toast.success('注册成功！请登录');
       // 导航到登录页面会在API成功后由应用状态管理
     } catch (error: any) {
