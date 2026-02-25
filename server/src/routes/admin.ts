@@ -186,6 +186,63 @@ router.get('/users/:id', adminAuthMiddleware, async (req: Request, res: Response
   }
 });
 
+// 更新用户信息
+router.put('/users/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { nickname } = req.body;
+    const userId = req.params.id;
+
+    const db = getDatabase();
+
+    // 检查用户是否存在
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 更新用户信息
+    if (nickname !== undefined) {
+      db.prepare('UPDATE users SET nickname = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(nickname, userId);
+    }
+
+    logger.info('User updated by admin', { userId });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    logger.error('Update user error', { error: error.message });
+    res.status(500).json({ error: error.message || '更新用户失败' });
+  }
+});
+
+// 删除用户
+router.delete('/users/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.params.id;
+    const db = getDatabase();
+
+    // 检查用户是否存在
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
+    // 删除用户相关数据（级联删除）
+    db.prepare('DELETE FROM tasks WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM orders WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM subscriptions WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM user_tokens WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+
+    logger.info('User deleted by admin', { userId });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    logger.error('Delete user error', { error: error.message });
+    res.status(500).json({ error: error.message || '删除用户失败' });
+  }
+});
+
 // 获取订单列表
 router.get('/orders', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
@@ -584,6 +641,54 @@ router.post('/subscriptions/check-expiry', adminAuthMiddleware, async (req: Requ
   } catch (error: any) {
     logger.error('Check subscription expiry error', { error: error.message });
     res.status(500).json({ error: error.message || '检查订阅到期失败' });
+  }
+});
+
+// 手动触发即将到期订阅提醒
+router.post('/subscriptions/send-expiry-reminders', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { days = 7 } = req.body;
+    const db = getDatabase();
+
+    // 查找即将到期的活跃订阅
+    const expiringSubscriptions = db.prepare(`
+      SELECT s.*, u.email, u.nickname
+      FROM subscriptions s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.status = 'active'
+        AND s.expires_at BETWEEN datetime('now') AND datetime('now', '+' || ? || ' days')
+    `).all(Number(days));
+
+    let sentCount = 0;
+
+    for (const sub of expiringSubscriptions) {
+      const expiresAt = new Date(sub.expires_at);
+      const daysLeft = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+      await emailQueue.add('send-email', {
+        type: 'subscription-expiring',
+        email: sub.email,
+        planName: sub.plan,
+        expiresAt,
+        daysLeft,
+      });
+
+      sentCount++;
+
+      logger.info('Subscription expiry reminder sent', {
+        subscriptionId: sub.id,
+        userId: sub.user_id,
+        daysLeft,
+      });
+    }
+
+    res.json({
+      success: true,
+      sentCount,
+    });
+  } catch (error: any) {
+    logger.error('Send subscription expiry reminders error', { error: error.message });
+    res.status(500).json({ error: error.message || '发送到期提醒失败' });
   }
 });
 
