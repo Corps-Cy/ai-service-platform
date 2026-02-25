@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import type { Database as DatabaseType } from 'better-sqlite3';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -6,7 +7,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-let db: Database.Database | null = null;
+let db: DatabaseType | null = null;
 
 export function initDatabase(): void {
   const dbPath = process.env.DATABASE_PATH || join(__dirname, '../../data/database.sqlite');
@@ -139,7 +140,7 @@ export function initDatabase(): void {
   console.log('✅ Database initialized');
 }
 
-export function getDatabase() {
+export function getDatabase(): DatabaseType {
   if (!db) {
     throw new Error('Database not initialized');
   }
