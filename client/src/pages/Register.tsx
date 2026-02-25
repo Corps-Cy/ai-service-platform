@@ -5,7 +5,7 @@ import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
 
 interface RegisterProps {
-  onRegister?: () => void;
+  onRegister: () => void;
 }
 
 const Register: React.FC<RegisterProps> = ({ onRegister }) => {
@@ -42,23 +42,33 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
     setLoading(true);
 
     try {
-      const response = await apiService.register(formData.email, formData.password, formData.nickname);
-      const { token } = response.data;
+      const response = await apiService.register(
+        formData.email, 
+        formData.password, 
+        formData.nickname
+      );
       
-      // 保存token
-      localStorage.setItem('token', token);
-      
-      // 通知父组件
-      if (onRegister) {
+      // 检查响应
+      if (response.data && response.data.token) {
+        // 保存token
+        localStorage.setItem('token', response.data.token);
+        
+        // 通知父组件更新认证状态
         onRegister();
+        
+        toast.success('注册成功！');
+        
+        // 使用setTimeout确保状态更新后再导航
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 100);
+      } else {
+        toast.error('注册失败：服务器响应异常');
       }
-      
-      toast.success('注册成功！');
-      
-      // 跳转到仪表板
-      navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || '注册失败');
+      console.error('Register error:', error);
+      const errorMessage = error.response?.data?.error || error.message || '注册失败';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -100,6 +110,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
                   className="input pl-10"
                   placeholder="您的昵称"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -119,6 +130,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
                   className="input pl-10"
                   placeholder="your@email.com"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -139,11 +151,13 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
                   placeholder="至少6位字符"
                   required
                   minLength={6}
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
+                  disabled={loading}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -166,11 +180,13 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
                   placeholder="再次输入密码"
                   required
                   minLength={6}
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
+                  disabled={loading}
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -204,7 +220,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
           <div className="mt-8 pt-6 border-t border-gray-100">
             <p className="text-center text-sm text-gray-600">
               已有账户？
-              <Link to="/login" className="text-[#6366F1] font-semibold hover:underline">
+              <Link to="/login" className="text-[#6366F1] font-semibold hover:underline ml-1">
                 立即登录
               </Link>
             </p>

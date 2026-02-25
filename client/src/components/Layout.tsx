@@ -1,6 +1,6 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Brain, Menu, X, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Brain, Menu, X, Zap, LayoutDashboard, LogOut, Settings } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,9 +9,10 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) => {
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [isScrolled, setIsScrolled] = React.useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -25,17 +26,18 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
     { path: '/pricing', label: '价格' },
   ];
 
-  const adminNavItems = [
-    { path: '/admin', label: '管理后台', adminOnly: true },
-  ];
-
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleLogout = () => {
+    setIsMenuOpen(false);
+    onLogout();
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F3FF]">
@@ -79,21 +81,24 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
                 <>
                   <Link
                     to="/dashboard"
-                    className="text-sm font-medium text-gray-600 hover:text-[#6366F1] transition-colors duration-200"
+                    className="text-sm font-medium text-gray-600 hover:text-[#6366F1] transition-colors duration-200 flex items-center space-x-1"
                   >
-                    仪表板
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>仪表板</span>
                   </Link>
                   <Link
                     to="/admin"
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors duration-200 flex items-center"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors duration-200 flex items-center space-x-1"
                   >
-                    🎛️ 管理后台
+                    <Settings className="w-4 h-4" />
+                    <span>管理后台</span>
                   </Link>
                   <button
-                    onClick={onLogout}
-                    className="btn btn-ghost px-4 py-2"
+                    onClick={handleLogout}
+                    className="flex items-center space-x-1 text-sm font-medium text-red-600 hover:text-red-700 transition-colors"
                   >
-                    退出
+                    <LogOut className="w-4 h-4" />
+                    <span>退出</span>
                   </button>
                 </>
               ) : (
@@ -106,7 +111,7 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
                   </Link>
                   <Link
                     to="/register"
-                    className="btn btn-primary px-6 py-2"
+                    className="btn btn-primary px-4 py-2"
                   >
                     注册
                   </Link>
@@ -116,18 +121,22 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
 
             {/* 移动端菜单按钮 */}
             <button
+              className="md:hidden p-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
             >
-              {isMenuOpen ? <X className="w-6 h-6 text-gray-600" /> : <Menu className="w-6 h-6 text-gray-600" />}
+              {isMenuOpen ? (
+                <X className="w-6 h-6 text-gray-600" />
+              ) : (
+                <Menu className="w-6 h-6 text-gray-600" />
+              )}
             </button>
           </div>
         </div>
 
-        {/* 移动端导航 */}
+        {/* 移动端菜单 */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-sm animate-fade-in">
-            <div className="px-4 py-4 space-y-2">
+          <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-gray-100">
+            <div className="px-4 py-4 space-y-4">
               {navItems.map((item) => {
                 if (item.auth && !isAuthenticated) return null;
                 return (
@@ -135,7 +144,7 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
                     key={item.path}
                     to={item.path}
                     onClick={() => setIsMenuOpen(false)}
-                    className={`block px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`block px-4 py-3 rounded-xl text-sm font-medium transition-colors duration-200 ${
                       isActive(item.path)
                         ? 'bg-[#F5F3FF] text-[#6366F1]'
                         : 'text-gray-700 hover:bg-gray-100'
@@ -145,63 +154,65 @@ const Layout: React.FC<LayoutProps> = ({ children, isAuthenticated, onLogout }) 
                   </Link>
                 );
               })}
-              {isAuthenticated ? (
-                <>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                  >
-                    仪表板
-                  </Link>
-                  <Link
-                    to="/admin"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-3 rounded-xl text-sm font-medium text-indigo-600 hover:bg-indigo-50 transition-colors duration-200"
-                  >
-                    🎛️ 管理后台
-                  </Link>
-                  <button
-                    onClick={() => {
-                      onLogout();
-                      setIsMenuOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors duration-200"
-                  >
-                    退出
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                  >
-                    登录
-                  </Link>
-                  <Link
-                    to="/register"
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block px-4 py-3 rounded-xl text-sm font-medium bg-[#6366F1] text-white text-center"
-                  >
-                    注册
-                  </Link>
-                </>
-              )}
+
+              <div className="pt-4 border-t border-gray-100">
+                {isAuthenticated ? (
+                  <>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      仪表板
+                    </Link>
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-3 rounded-xl text-sm font-medium text-indigo-600 hover:bg-indigo-50 transition-colors duration-200"
+                    >
+                      管理后台
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors duration-200"
+                    >
+                      退出
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      登录
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block px-4 py-3 rounded-xl text-sm font-medium bg-[#6366F1] text-white hover:bg-[#4F46E5] transition-colors duration-200"
+                    >
+                      注册
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
       </nav>
 
-      {/* 主内容 */}
-      <main>{children}</main>
+      {/* 主要内容 */}
+      <main>
+        {children}
+      </main>
 
       {/* 页脚 */}
-      <footer className="bg-white border-t border-gray-100 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-          <div className="text-center text-sm text-gray-600">
-            <p>© 2024 AI服务平台. 基于智谱AI提供AI服务.</p>
+      <footer className="bg-white/80 backdrop-blur-sm border-t border-gray-100 py-8 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center text-gray-500 text-sm">
+            <p>© 2026 AI Service Platform. All rights reserved.</p>
           </div>
         </div>
       </footer>

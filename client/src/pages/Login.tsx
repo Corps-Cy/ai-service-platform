@@ -17,24 +17,38 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error('请输入邮箱和密码');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const response = await apiService.login(email, password);
-      const { token } = response.data;
       
-      // 保存token
-      localStorage.setItem('token', token);
-      
-      // 更新认证状态
-      onLogin();
-      
-      toast.success('登录成功！');
-      
-      // 跳转到仪表板
-      navigate('/dashboard');
+      // 检查响应
+      if (response.data && response.data.token) {
+        // 保存token
+        localStorage.setItem('token', response.data.token);
+        
+        // 通知父组件更新认证状态
+        onLogin();
+        
+        toast.success('登录成功！');
+        
+        // 使用setTimeout确保状态更新后再导航
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 100);
+      } else {
+        toast.error('登录失败：服务器响应异常');
+      }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || '登录失败');
+      console.error('Login error:', error);
+      const errorMessage = error.response?.data?.error || error.message || '登录失败';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -76,6 +90,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   className="input pl-10"
                   placeholder="your@email.com"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -95,11 +110,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   className="input pl-10 pr-10"
                   placeholder="•••••••"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
+                  disabled={loading}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -109,7 +126,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {/* 登录按钮 */}
             <button
               type="submit"
-              disabled={loading || !email || !password}
+              disabled={loading}
               className={`btn btn-primary w-full flex items-center justify-center ${
                 loading ? 'opacity-70 cursor-not-allowed' : ''
               }`}
@@ -133,7 +150,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div className="mt-8 pt-6 border-t border-gray-100">
             <p className="text-center text-sm text-gray-600">
               还没有账户？
-              <Link to="/register" className="text-[#6366F1] font-semibold hover:underline">
+              <Link to="/register" className="text-[#6366F1] font-semibold hover:underline ml-1">
                 立即注册
               </Link>
             </p>

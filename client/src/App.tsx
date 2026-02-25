@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -16,75 +16,126 @@ import InitConfig from './pages/InitConfig';
 import './App.css';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
-  const [isInitialized, setIsInitialized] = useState(true);
-  const [checkingInit, setCheckingInit] = useState(true);
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleLogin = () => setIsAuthenticated(true);
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
-  };
-
+  // 检查初始化状态
   useEffect(() => {
-    const checkInitialization = async () => {
+    const checkInit = async () => {
       try {
         const response = await fetch('/api/init/status');
         const data = await response.json();
         setIsInitialized(data.configured);
       } catch (error) {
-        // 如果API调用失败，默认认为已初始化（避免无限重定向）
+        // API失败，假设已初始化
         setIsInitialized(true);
       } finally {
-        setCheckingInit(false);
+        setLoading(false);
       }
     };
 
-    checkInitialization();
+    checkInit();
   }, []);
+
+  // 检查认证状态
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  // 登录处理
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  // 登出处理
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    navigate('/');
+  };
+
+  // 加载中
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F3FF]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#6366F1] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 未初始化，显示初始化页面
+  if (isInitialized === false) {
+    return (
+      <Routes>
+        <Route path="*" element={<InitConfig />} />
+      </Routes>
+    );
+  }
 
   return (
     <Layout isAuthenticated={isAuthenticated} onLogout={handleLogout}>
       <Routes>
-        {/* 初始化检查 */}
-        {!isInitialized && !checkingInit && (
-          <Route path="*" element={<InitConfig />} />
-        )}
-
-        {/* 正常路由 */}
+        {/* 公开路由 */}
         <Route path="/" element={<Home />} />
-        <Route path="/init" element={<InitConfig />} />
-        <Route path="/login" element={<Login onLogin={handleLogin} />} />
-        <Route path="/register" element={<Register onRegister={handleLogin} />} />
-        <Route
-          path="/dashboard"
-          element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated 
+              ? <Navigate to="/dashboard" replace /> 
+              : <Login onLogin={handleLogin} />
+          } 
         />
-        <Route
-          path="/image"
-          element={isAuthenticated ? <TextToImage /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/text"
-          element={isAuthenticated ? <TextGenerate /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/image-understand"
-          element={isAuthenticated ? <ImageUnderstand /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/document"
-          element={isAuthenticated ? <DocumentProcess /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/excel"
-          element={isAuthenticated ? <ExcelProcess /> : <Navigate to="/login" />}
+        <Route 
+          path="/register" 
+          element={
+            isAuthenticated 
+              ? <Navigate to="/dashboard" replace /> 
+              : <Register onRegister={handleLogin} />
+          } 
         />
         <Route path="/pricing" element={<Pricing />} />
-        <Route
-          path="/admin"
-          element={isAuthenticated ? <Admin /> : <Navigate to="/login" />}
+        <Route path="/init" element={<InitConfig />} />
+
+        {/* 需要认证的路由 */}
+        <Route 
+          path="/dashboard" 
+          element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />} 
         />
+        <Route 
+          path="/image" 
+          element={isAuthenticated ? <TextToImage /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/text" 
+          element={isAuthenticated ? <TextGenerate /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/image-understand" 
+          element={isAuthenticated ? <ImageUnderstand /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/document" 
+          element={isAuthenticated ? <DocumentProcess /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/excel" 
+          element={isAuthenticated ? <ExcelProcess /> : <Navigate to="/login" replace />} 
+        />
+        <Route 
+          path="/admin" 
+          element={isAuthenticated ? <Admin /> : <Navigate to="/login" replace />} 
+        />
+
+        {/* 404 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
   );
