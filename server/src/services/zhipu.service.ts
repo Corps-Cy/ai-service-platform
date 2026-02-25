@@ -3,7 +3,6 @@ import logger from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 const ZHIPU_BASE_URL = process.env.ZHIPU_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
-const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY;
 
 export interface ZhipuResponse<T = any> {
   code: number;
@@ -33,14 +32,40 @@ class ZhipuService {
   private apiKey: string;
 
   constructor() {
-    if (!ZHIPU_API_KEY) {
-      throw new Error('ZHIPU_API_KEY not configured');
+    // 不再抛出错误，允许服务启动
+    this.apiKey = process.env.ZHIPU_API_KEY || '';
+    
+    if (!this.apiKey) {
+      logger.warn('ZHIPU_API_KEY not configured. AI features will not work until configured.');
+    } else {
+      logger.info('ZhipuAI service initialized successfully');
     }
-    this.apiKey = ZHIPU_API_KEY;
+  }
+
+  // 检查是否已配置
+  isConfigured(): boolean {
+    return !!this.apiKey;
+  }
+
+  // 重新加载配置
+  reloadConfig(): void {
+    this.apiKey = process.env.ZHIPU_API_KEY || '';
+    if (this.apiKey) {
+      logger.info('ZhipuAI configuration reloaded');
+    }
+  }
+
+  // 检查配置并抛出友好的错误
+  private checkConfig(): void {
+    if (!this.apiKey) {
+      throw new AppError(503, '智谱AI服务未配置，请先完成系统初始化配置');
+    }
   }
 
   // 文生图 (CogView)
   async generateImage(options: ImageGenOptions): Promise<any> {
+    this.checkConfig();
+    
     logger.info('Image generation request', { prompt: options.prompt });
     
     try {
@@ -50,34 +75,30 @@ class ZhipuService {
           model: 'cogview-3',
           prompt: options.prompt,
           size: options.size || '1024x1024',
-          n: options.num || 1
+          n: options.num || 1,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
         }
       );
-      
-      logger.info('Image generation success', { 
-        prompt: options.prompt,
-        resultCount: response.data?.data?.length || 1 
-      });
-      
+
+      logger.info('Image generated successfully', { prompt: options.prompt });
       return response.data;
     } catch (error: any) {
-      logger.error('Image generation failed', {
-        error: error.response?.data || error.message,
-        prompt: options.prompt
-      });
-      
-      if (error.response?.status === 429) {
-        throw new AppError(429, '请求过于频繁，请稍后再试');
-      }
-      
-      throw new AppError(500, error.response?.data?.message || '图片生成失败');
+      logger.error('Image generation failed', { error: error.message, prompt: options.prompt });
+      throw new AppError(500, error.message || '图片生成失败');
     }
   }
 
-  // 文本生成 (GLM-4)
+  // 文本生成
   async generateText(options: TextGenOptions): Promise<any> {
-    logger.info('Text generation request', { model: options.model, messageCount: options.messages.length });
+    this.checkConfig();
     
+    logger.info('Text generation request', { model: options.model });
+
     try {
       const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/chat/completions`,
@@ -85,34 +106,30 @@ class ZhipuService {
           model: options.model || 'glm-4',
           messages: options.messages,
           temperature: options.temperature || 0.7,
-          max_tokens: options.max_tokens || 2000
+          max_tokens: options.max_tokens || 1024,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
         }
       );
-      
-      logger.info('Text generation success', { 
-        model: options.model,
-        tokensUsed: response.data?.usage?.total_tokens 
-      });
-      
+
+      logger.info('Text generated successfully', { model: options.model });
       return response.data;
     } catch (error: any) {
-      logger.error('Text generation failed', {
-        error: error.response?.data || error.message,
-        model: options.model
-      });
-      
-      if (error.response?.status === 429) {
-        throw new AppError(429, '请求过于频繁，请稍后再试');
-      }
-      
-      throw new AppError(500, error.response?.data?.message || '文本生成失败');
+      logger.error('Text generation failed', { error: error.message, model: options.model });
+      throw new AppError(500, error.message || '文本生成失败');
     }
   }
 
   // 图片理解 (GLM-4V)
   async understandImage(options: ImageUnderstandOptions): Promise<any> {
-    logger.info('Image understanding request');
+    this.checkConfig();
     
+    logger.info('Image understanding request');
+
     try {
       const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/chat/completions`,
@@ -122,140 +139,89 @@ class ZhipuService {
             {
               role: 'user',
               content: [
+                { type: 'image_url', image_url: { url: options.image } },
                 { type: 'text', text: options.prompt },
-                { type: 'image_url', image_url: { url: options.image } }
-              ]
-            }
-          ]
-        }
-      );
-      
-      logger.info('Image understanding success');
-      
-      return response.data;
-    } catch (error: any) {
-      logger.error('Image understanding failed', {
-        error: error.response?.data || error.message
-      });
-      
-      if (error.response?.status === 429) {
-        throw new AppError(429, '请求过于频繁，请稍后再试');
-      }
-      
-      throw new AppError(500, error.response?.data?.message || '图片理解失败');
-    }
-  }
-
-  // 文档处理（PDF解析）
-  async parseDocument(content: string, task: string): Promise<any> {
-    logger.info('Document processing request', { task, contentLength: content.length });
-    
-    try {
-      const response = await apiClient.post(
-        `${ZHIPU_BASE_URL}/chat/completions`,
-        {
-          model: 'glm-4',
-          messages: [
-            {
-              role: 'system',
-              content: '你是一个专业的文档处理助手，擅长PDF解析、内容提取、格式转换等任务。'
+              ],
             },
-            {
-              role: 'user',
-              content: `请帮我完成以下任务：${task}\n\n文档内容：\n${content}`
-            }
           ],
-          temperature: 0.3,
-          max_tokens: 4000
+          max_tokens: 1024,
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
         }
       );
-      
-      logger.info('Document processing success');
-      
+
+      logger.info('Image understood successfully');
       return response.data;
     } catch (error: any) {
-      logger.error('Document processing failed', {
-        error: error.response?.data || error.message,
-        task
-      });
-      
-      if (error.response?.status === 429) {
-        throw new AppError(429, '请求过于频繁，请稍后再试');
-      }
-      
-      throw new AppError(500, error.response?.data?.message || '文档处理失败');
+      logger.error('Image understanding failed', { error: error.message });
+      throw new AppError(500, error.message || '图片理解失败');
     }
   }
 
-  // Excel操作（生成/分析）
-  async processExcel(instruction: string, data?: any): Promise<any> {
-    logger.info('Excel processing request', { hasData: !!data, instruction });
+  // 文档解析
+  async parseDocument(content: string, task: string): Promise<string> {
+    this.checkConfig();
     
+    logger.info('Document parsing request', { task });
+
     try {
-      const content = data ? `现有数据：\n${JSON.stringify(data, null, 2)}\n` : '';
-      const response = await apiClient.post(
-        `${ZHIPU_BASE_URL}/chat/completions`,
-        {
-          model: 'glm-4',
-          messages: [
-            {
-              role: 'system',
-              content: '你是一个Excel专家，擅长数据生成、分析和格式化。请以JSON格式返回结果。'
-            },
-            {
-              role: 'user',
-              content: `${content}请帮我：${instruction}`
-            }
-          ],
-          temperature: 0.5,
-          max_tokens: 3000
-        }
-      );
-      
-      logger.info('Excel processing success');
-      
-      return response.data;
-    } catch (error: any) {
-      logger.error('Excel processing failed', {
-        error: error.response?.data || error.message,
-        instruction
+      const response = await this.generateText({
+        model: 'glm-4',
+        messages: [
+          {
+            role: 'system',
+            content: '你是一个专业的文档处理助手。',
+          },
+          {
+            role: 'user',
+            content: `${task}\n\n文档内容：\n${content}`,
+          },
+        ],
+        max_tokens: 4096,
       });
-      
-      if (error.response?.status === 429) {
-        throw new AppError(429, '请求过于频繁，请稍后再试');
-      }
-      
-      throw new AppError(500, error.response?.data?.message || 'Excel处理失败');
+
+      return response.choices[0].message.content;
+    } catch (error: any) {
+      logger.error('Document parsing failed', { error: error.message });
+      throw new AppError(500, error.message || '文档解析失败');
     }
   }
 
-  // 视频生成（如果API支持）
-  async generateVideo(prompt: string, duration: number = 5): Promise<any> {
-    logger.info('Video generation request', { prompt, duration });
+  // Excel操作
+  async processExcel(instruction: string, data?: any): Promise<string> {
+    this.checkConfig();
     
+    logger.info('Excel processing request');
+
     try {
-      const response = await apiClient.post(
-        `${ZHIPU_BASE_URL}/videos/generations`,
-        {
-          model: 'cogvideox',
-          prompt: prompt,
-          duration: duration
-        }
-      );
+      const dataStr = data ? `\n\n数据：\n${JSON.stringify(data, null, 2)}` : '';
       
-      logger.info('Video generation success');
-      
-      return response.data;
-    } catch (error: any) {
-      logger.error('Video generation failed', {
-        error: error.response?.data || error.message,
-        prompt
+      const response = await this.generateText({
+        model: 'glm-4',
+        messages: [
+          {
+            role: 'system',
+            content: '你是一个Excel处理专家。根据用户的要求处理数据，返回处理结果。',
+          },
+          {
+            role: 'user',
+            content: `${instruction}${dataStr}`,
+          },
+        ],
+        max_tokens: 4096,
       });
-      
-      // 视频生成可能暂未开放，返回友好提示
-      throw new AppError(400, '视频生成功能暂未开放，请稍后再试');
+
+      return response.choices[0].message.content;
+    } catch (error: any) {
+      logger.error('Excel processing failed', { error: error.message });
+      throw new AppError(500, error.message || 'Excel处理失败');
     }
   }
 }
 
+// 导出单例实例
 export const zhipuService = new ZhipuService();
