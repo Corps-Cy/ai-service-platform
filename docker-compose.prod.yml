@@ -10,7 +10,7 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis_data:/data
+      redis_data:
     command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-}"
     networks:
       - ai-platform
