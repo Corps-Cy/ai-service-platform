@@ -1,63 +1,113 @@
+# AI Service Platform - 生产环境部署配置
 version: '3.8'
 
 services:
+  # Redis服务 - 用于任务队列和缓存
   redis:
     image: redis:7-alpine
     container_name: ai-platform-redis
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
-    restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-}"
     networks:
       - ai-platform
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
+  # 后端API服务
   server:
+    # 使用本地构建（首次部署）
+    # 如果使用GitHub Container Registry镜像，替换为：
+    # image: ghcr.io/corps-cy/ai-service-platform-server:latest
     build:
       context: ./server
       dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    image: ai-platform-server:latest
     container_name: ai-platform-server
+    restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "${SERVER_PORT:-3001}:3001"
     environment:
       - NODE_ENV=production
       - PORT=3001
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:80}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=0
+      - REDIS_CACHE_DB=1
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
     volumes:
       - ./uploads:/app/uploads
       - ./data:/app/data
-      - ./logs:/app/logs
+      - ./logs/server:/app/logs
     depends_on:
       redis:
-        condition: service_started
-    restart: unless-stopped
+        condition: service_healthy
     env_file:
       - .env
     networks:
       - ai-platform
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # 前端Web服务
   client:
+    # 使用本地构建（首次部署）
+    # 如果使用GitHub Container Registry镜像，替换为：
+    # image: ghcr.io/corps-cy/ai-service-platform-client:latest
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3001/api
+    image: ai-platform-client:latest
     container_name: ai-platform-client
+    restart: unless-stopped
     ports:
-      - "80:80"
+      - "${CLIENT_PORT:-80}:80"
     environment:
-      - VITE_API_URL=${API_URL:-http://localhost:3001/api}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/api}
     depends_on:
       - server
-    restart: unless-stopped
     networks:
       - ai-platform
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+# 数据卷
 volumes:
   redis_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
 
+# 网络配置
 networks:
   ai-platform:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: ai-platform
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
