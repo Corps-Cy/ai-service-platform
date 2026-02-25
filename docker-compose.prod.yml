@@ -81,11 +81,6 @@ services:
 # 数据卷
 volumes:
   redis_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data/redis
 
 # 网络配置
 networks:
