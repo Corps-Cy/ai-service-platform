@@ -9,6 +9,7 @@ import logger from './utils/logger.js';
 import requestLogger from './middleware/requestLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import rateLimit from 'express-rate-limit';
+import { getQueueStats, closeQueues } from './queue/index.js';
 
 dotenv.config();
 
@@ -48,6 +49,17 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// 队列统计
+app.get('/api/admin/queue-stats', async (req, res) => {
+  try {
+    const stats = await getQueueStats();
+    res.json(stats);
+  } catch (error: any) {
+    logger.error('Get queue stats error', { error: error.message });
+    res.status(500).json({ error: '获取队列统计失败' });
+  }
+});
+
 // 初始化数据库
 initDatabase();
 
@@ -69,3 +81,21 @@ app.listen(PORT, () => {
   logger.info(`🌍 Environment: ${process.env.NODE_ENV}`);
   logger.info(`📊 Frontend URL: ${process.env.FRONTEND_URL}`);
 });
+
+// 优雅关闭
+const gracefulShutdown = async (signal: string) => {
+  logger.info(`${signal} received. Starting graceful shutdown...`);
+
+  try {
+    await closeQueues();
+    logger.info('✅ Queues closed successfully');
+
+    process.exit(0);
+  } catch (error: any) {
+    logger.error('❌ Error during graceful shutdown', { error: error.message });
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

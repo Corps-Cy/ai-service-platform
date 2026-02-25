@@ -11,6 +11,12 @@
   - Home.tsx（首页）
   - Dashboard.tsx（仪表板）
   - TextToImage.tsx（文生图）
+  - TextGenerate.tsx（文本生成）
+  - ImageUnderstand.tsx（图片理解）
+  - DocumentProcess.tsx（文档处理）
+  - Login.tsx（登录页）
+  - Register.tsx（注册页）
+  - Pricing.tsx（定价页）
   - Layout.tsx（导航栏、页脚）
   - tailwind.config.js（样式配置）
   - index.css（全局样式、Google字体）
@@ -53,6 +59,93 @@
   - 更新tasks.ts应用限流
   - 创建.env.example配置文件
 
+### 3. 支付API对接
+- ✅ 微信支付集成
+  - 使用wechatpay-node-v3 SDK
+  - 支持Native支付（扫码）
+  - 支持H5支付
+  - 支付回调签名验证
+  - 订单查询、关闭、退款
+  - 创建wechat-pay.service.ts
+
+- ✅ 支付宝集成
+  - 使用alipay-sdk
+  - 支持网页支付
+  - 支持手机网页支付
+  - 支持扫码支付
+  - 支付回调签名验证
+  - 订单查询、关闭、退款
+  - 创建alipay.service.ts
+
+- ✅ 支付路由更新
+  - 创建订单接口
+  - 微信支付回调
+  - 支付宝回调
+  - 订单查询
+  - 订单列表
+  - 申请退款
+  - 支付成功处理（订阅、充值）
+
+- ✅ 数据库更新
+  - 订单表增加transaction_id字段
+  - 订单表增加refund_order_no字段
+  - 订单表增加description字段
+  - 订单表增加refunded_at字段
+
+- ✅ 环境变量配置
+  - 微信支付配置（appid、mchid、serial_no、private_key、notify_url）
+  - 支付宝配置（appid、private_key、public_key、notify_url）
+
+### 4. 任务队列系统
+- ✅ Bull + Redis集成
+  - 安装bull和ioredis
+  - 创建任务队列（ai-tasks）
+  - 创建邮件队列（email-tasks）
+  - 队列处理器（AI任务、邮件任务）
+  - 优先级配置
+  - 重试机制（3次，指数退避）
+
+- ✅ 队列管理
+  - 添加任务到队列
+  - 查询任务状态
+  - 队列统计（等待、活跃、完成、失败）
+  - 队列清理
+  - 优雅关闭
+
+- ✅ 事件监听
+  - 任务完成事件
+  - 任务失败事件
+  - 任务停滞事件
+
+- ✅ Docker配置
+  - Redis服务
+  - 服务依赖Redis
+  - 持久化配置
+  - 日志卷
+
+- ✅ 应用集成
+  - 队列初始化
+  - 队列统计API端点
+  - 优雅关闭处理
+
+### 5. 结果缓存系统
+- ✅ Redis缓存
+  - 创建独立的缓存Redis客户端
+  - 缓存键生成
+  - 设置/获取/删除缓存
+  - 批量删除（按模式）
+  - TTL管理
+
+- ✅ 缓存装饰器
+  - 自动缓存函数结果
+  - 自定义键生成器
+  - 可配置TTL
+
+- ✅ 缓存管理
+  - 按前缀清除缓存
+  - 刷新TTL
+  - 缓存统计（键数、内存、命中率）
+
 ---
 
 ## 进行中 🚧
@@ -63,42 +156,42 @@
 
 ## 待完成 📋
 
-### 高优先级（核心商业化）
+### 高优先级（商业化功能）
 
-1. **支付API对接** ⭐⭐⭐
-   - 微信支付API集成
-   - 支付宝API集成
-   - 更新payment.ts实现真实支付逻辑
-   - 添加webhook处理支付回调
+1. **邮件通知系统** ⭐⭐⭐
+   - 集成邮件服务（nodemailer）
+   - 订单创建通知
+   - 支付成功通知
+   - 任务完成通知
+   - 订阅到期提醒
 
-2. **任务队列系统** ⭐⭐⭐
-   - 安装Bull + Redis
-   - 实现异步任务处理
-   - 重试失败的API调用
-   - 优先级队列
-
-3. **其他功能**
-   - 结果缓存系统
-   - 邮件通知（订单/任务完成）
-   - 后台管理界面
+2. **后台管理界面** ⭐⭐⭐
+   - 用户管理
+   - 订单管理
+   - 订阅管理
+   - 统计分析
+   - 系统设置
 
 ### 中优先级（用户体验）
 
-4. **前端页面统一风格** ⭐⭐
-   - Login.tsx - 登录页
-   - Register.tsx - 注册页
-   - TextGenerate.tsx - 文本生成页
-   - ImageUnderstand.tsx - 图片理解页
-   - DocumentProcess.tsx - 文档处理页
-   - ExcelProcess.tsx - Excel操作页
-   - Pricing.tsx - 定价页
+3. **API密钥管理页面** ⭐⭐
+   - API密钥创建
+   - API密钥列表
+   - API密钥删除
+   - 使用量统计
 
-5. **其他UI改进**
-   - API密钥管理页面
-   - 用户设置页面
-   - 支付历史页面
+4. **用户设置页面** ⭐⭐
+   - 个人信息编辑
+   - 密码修改
+   - 通知设置
+   - 偏好设置
 
-### 低优先级（增强）
+5. **支付历史页面** ⭐⭐
+   - 订单列表
+   - 支付详情
+   - 退款申请
+
+### 低优先级（增强功能）
 
 6. **视频生成** ⭐
    - 等智谱开放视频API
@@ -108,28 +201,33 @@
    - 评分、评论功能
    - 反馈收集表单
 
+8. **系统监控**
+   - 实时性能监控
+   - 错误追踪
+   - 日志分析
+
 ---
 
 ## 技术栈更新
 
 **新增依赖：**
-- winston
-- winston-daily-rotate-file
-- axios-retry
-- express-rate-limit
+- wechatpay-node-v3（微信支付SDK）
+- alipay-sdk（支付宝SDK）
+- bull（任务队列）
+- ioredis（Redis客户端）
+
+**新增文件：**
+- server/src/services/wechat-pay.service.ts（微信支付服务）
+- server/src/services/alipay.service.ts（支付宝服务）
+- server/src/queue/index.ts（任务队列）
+- server/src/services/cache.service.ts（缓存服务）
 
 **配置文件：**
-- .env.example（环境变量模板）
+- docker-compose.yml（添加Redis服务）
+- .env.example（支付、队列、缓存配置）
 
-**中间件：**
-- src/middleware/logger.ts
-- src/middleware/errorHandler.ts
-- src/middleware/requestLogger.ts
-- src/middleware/rateLimiter.ts
-
-**工具：**
-- src/utils/logger.ts
-- src/utils/apiClient.ts（带重试的axios实例）
+**数据库：**
+- 订单表字段更新
 
 ---
 
@@ -137,19 +235,32 @@
 
 1. **启动开发服务器测试**
    ```bash
-   cd /home/node/.openclaw/workspace/ai-service-platform/client
-   pnpm install  # 首次
+   cd /home/node/.openclaw/workspace/ai-service-platform/server
    pnpm dev
    ```
 
-2. **优先完成支付API对接**
-   - 这是最重要的商业化功能
-   - 微信/支付宝都有官方SDK
+2. **启动Redis**
+   ```bash
+   # 本地开发
+   redis-server
 
-3. **统一剩余前端页面**
-   - 使用新的AI-Native UI风格
-   - 保持设计一致性
+   # 或使用Docker
+   docker-compose up -d redis
+   ```
+
+3. **测试支付功能**
+   - 配置微信支付/支付宝密钥
+   - 创建订单测试
+   - 测试支付回调
+
+4. **优先完成邮件通知系统**
+   - 这是最重要的用户反馈功能
+   - nodemailer配置简单
+
+5. **完成管理界面**
+   - 用户和订单管理
+   - 数据统计
 
 ---
 
-更新时间：2026-02-25
+更新时间：2026-02-25 05:40

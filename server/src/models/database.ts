@@ -51,8 +51,12 @@ export function initDatabase() {
       status TEXT NOT NULL,
       product_type TEXT NOT NULL,
       product_id TEXT,
+      description TEXT,
+      transaction_id TEXT,
+      refund_order_no TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       paid_at DATETIME,
+      refunded_at DATETIME,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
