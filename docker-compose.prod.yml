@@ -78,6 +78,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
+# 注意：前端使用相对路径 /api
+# 需要在Nginx中配置 /api 代理到后端服务
+# 参见 DEPLOYMENT.md 中的Nginx配置示例
+
 # 数据卷 - Redis数据持久化
 volumes:
   redis_data:

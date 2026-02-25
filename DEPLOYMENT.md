@@ -1,440 +1,268 @@
-# 部署指南
+# 生产环境部署指南
 
-## 前置要求
+## 快速部署
 
-- Docker 20.10+
-- Docker Compose 2.0+
-- 服务器至少 2GB 内存
-- 80 端口和 3001 端口可用
-- Git
-
-## GitHub Actions 自动构建
-
-项目已配置GitHub Actions自动构建Docker镜像。当代码推送到`main`或`develop`分支时，会自动：
-
-1. 构建Server镜像
-2. 构建Client镜像
-3. 推送到GitHub Container Registry (GHCR)
-
-### 更新Personal Access Token
-
-如果遇到workflow权限错误，需要更新GitHub Personal Access Token：
-
-1. 访问 GitHub Settings → Developer settings → Personal access tokens
-2. 创建新Token或更新现有Token
-3. 确保勾选以下权限：
-   - `repo` - 完整仓库访问权限
-   - `workflow` - GitHub Actions工作流权限
-   - `write:packages` - 包写入权限
-4. 更新Git remote中的Token：
-   ```bash
-   git remote set-url origin https://NEW_TOKEN@github.com/Corps-Cy/ai-service-platform.git
-   ```
-
-### 手动触发构建
-
-在GitHub仓库页面，进入Actions → Build and Push Docker Images → Run workflow 可以手动触发构建。
-
-## 部署步骤
-
-### 1. 克隆代码
+### 步骤1：克隆代码
 
 ```bash
 git clone https://github.com/Corps-Cy/ai-service-platform.git
 cd ai-service-platform
 ```
 
-### 2. 配置环境变量
-
-复制环境变量模板并编辑：
+### 步骤2：创建必要目录
 
 ```bash
-cp server/.env.example .env
+mkdir -p data uploads logs
 ```
 
-编辑 `.env` 文件，配置以下关键变量：
+### 步骤3：启动Docker服务
 
 ```bash
-# Server Configuration
-NODE_ENV=production
-PORT=3001
+# 拉取镜像
+docker-compose -f docker-compose.prod.yml pull
 
-# Database
-DATABASE_PATH=./data/database.sqlite
-
-# Frontend
-FRONTEND_URL=http://your-domain.com
-
-# ZhipuAI Configuration
-ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
-ZHIPU_API_KEY=your_zhipu_api_key_here
-
-# JWT Secret (请修改为随机字符串)
-JWT_SECRET=your-secret-key-change-in-production
-
-# Redis Configuration
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=
-REDIS_DB=0
-REDIS_CACHE_DB=1
-
-# WeChat Pay Configuration
-WECHAT_APPID=your_wechat_appid
-WECHAT_MCHID=your_merchant_id
-WECHAT_SERIAL_NO=your_serial_no
-WECHAT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----
-your_private_key
------END PRIVATE KEY-----
-WECHAT_NOTIFY_URL=https://your-domain.com/api/payment/wechat/notify
-
-# Alipay Configuration
-ALIPAY_APPID=your_alipay_appid
-ALIPAY_PRIVATE_KEY=-----BEGIN RSA PRIVATE KEY-----
-your_private_key
------END RSA PRIVATE KEY-----
-ALIPAY_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----
-alipay_public_key
------END PUBLIC KEY-----
-ALIPAY_NOTIFY_URL=https://your-domain.com/api/payment/alipay/notify
-
-# Email Configuration
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_password
-EMAIL_FROM=noreply@yourdomain.com
-EMAIL_FROM_NAME=AI Service Platform
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=1000
-
-# Logging
-LOG_LEVEL=info
-
-# Retry Configuration
-RETRY_MAX_ATTEMPTS=3
-RETRY_DELAY_MS=1000
-
-# Admin Configuration
-ADMIN_EMAILS=admin@yourdomain.com,manager@yourdomain.com
-```
-
-### 3. 启动服务
-
-使用生产环境配置启动：
-
-```bash
+# 启动服务
 docker-compose -f docker-compose.prod.yml up -d
-```
 
-### 4. 查看服务状态
-
-```bash
+# 查看状态
 docker-compose -f docker-compose.prod.yml ps
 ```
 
-### 5. 查看日志
+### 步骤4：配置Nginx（重要！）
 
-查看所有服务日志：
-
-```bash
-docker-compose -f docker-compose.prod.yml logs -f
-```
-
-查看特定服务日志：
+**这一步是必须的**，否则前端无法访问后端API。
 
 ```bash
-# Server日志
-docker-compose -f docker-compose.prod.yml logs -f server
+# 复制Nginx配置
+sudo cp nginx.conf.example /etc/nginx/sites-available/ai-platform
 
-# Client日志
-docker-compose -f docker-compose.prod.yml logs -f client
+# 编辑配置，修改域名
+sudo nano /etc/nginx/sites-available/ai-platform
+# 将 your-domain.com 改为你的域名或服务器IP
 
-# Redis日志
-docker-compose -f docker-compose.prod.yml logs -f redis
+# 启用配置
+sudo ln -s /etc/nginx/sites-available/ai-platform /etc/nginx/sites-enabled/
+
+# 测试配置
+sudo nginx -t
+
+# 重载Nginx
+sudo systemctl reload nginx
 ```
 
-## 配置Nginx反向代理（推荐）
+### 步骤5：访问网站
 
-### 1. 创建Nginx配置文件
+打开浏览器访问 `http://your-domain.com`
 
-创建 `/etc/nginx/sites-available/ai-service-platform`：
+---
+
+## 架构说明
+
+```
+用户请求
+    │
+    ▼
+┌─────────────┐
+│    Nginx    │  (80/443)
+│  反向代理   │
+└─────────────┘
+    │
+    ├── /api/* ──────────────────► 后端服务 (容器:3001)
+    │
+    └── /* ─────────────────────► 前端服务 (容器:80)
+```
+
+### 关键点
+
+1. **前端** 默认使用相对路径 `/api`
+2. **Nginx** 将 `/api` 请求代理到后端容器
+3. **后端** 运行在容器内的 3001 端口
+
+---
+
+## Nginx配置详解
+
+### 最简配置
 
 ```nginx
 server {
     listen 80;
     server_name your-domain.com;
 
-    # 重定向到HTTPS
-    return 301 https://$server_name$request_uri;
+    # API请求转发到后端
+    location /api {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # 其他请求转发到前端
+    location / {
+        proxy_pass http://127.0.0.1:80;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+### 完整配置
+
+参见 `nginx.conf.example` 文件，包含：
+- API代理配置
+- 静态资源缓存
+- WebSocket支持
+- 上传文件处理
+- HTTPS/SSL配置
+
+---
+
+## 常见问题
+
+### 1. 前端无法访问API
+
+**症状**：注册/登录时网络错误
+
+**原因**：Nginx未正确配置
+
+**解决**：
+```bash
+# 检查Nginx配置
+sudo nginx -t
+
+# 确认后端服务运行
+docker-compose -f docker-compose.prod.yml ps
+
+# 查看Nginx错误日志
+sudo tail -f /var/log/nginx/error.log
+```
+
+### 2. API返回404
+
+**原因**：location配置顺序问题
+
+**解决**：确保 `/api` 在 `/` 之前配置
+```nginx
+location /api {  # 必须在前
+    proxy_pass http://127.0.0.1:3001;
 }
 
+location / {  # 必须在后
+    proxy_pass http://127.0.0.1:80;
+}
+```
+
+### 3. 文件上传失败
+
+**原因**：Nginx默认限制1MB
+
+**解决**：
+```nginx
+server {
+    client_max_body_size 50M;  # 添加在server块中
+}
+```
+
+### 4. 跨域问题
+
+**解决**：确保Nginx正确传递请求头
+```nginx
+location /api {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+---
+
+## 端口说明
+
+| 服务 | 容器端口 | 宿主机端口 | 说明 |
+|------|---------|-----------|------|
+| 前端 | 80 | 80 | Nginx代理 |
+| 后端 | 3001 | 3001 | Nginx代理 |
+| Redis | 6379 | 6379 | 仅内部访问 |
+
+---
+
+## SSL证书配置
+
+### 使用Let's Encrypt
+
+```bash
+# 安装Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# 获取证书（自动配置Nginx）
+sudo certbot --nginx -d your-domain.com
+
+# 测试自动续期
+sudo certbot renew --dry-run
+```
+
+### 手动配置SSL
+
+1. 获取SSL证书
+2. 修改Nginx配置：
+```nginx
 server {
     listen 443 ssl http2;
     server_name your-domain.com;
 
-    # SSL证书配置（使用Let's Encrypt）
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
 
-    # SSL配置
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
+    # ... 其他配置
+}
 
-    # 前端静态文件
-    location / {
-        proxy_pass http://localhost:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # API代理
-    location /api {
-        proxy_pass http://localhost:3001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # WebSocket支持
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    # 上传文件大小限制
-    client_max_body_size 50M;
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$server_name$request_uri;
 }
 ```
 
-### 2. 启用配置
+---
+
+## 服务管理命令
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/ai-service-platform /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
+# 查看状态
+docker-compose -f docker-compose.prod.yml ps
 
-### 3. 安装SSL证书（使用Certbot）
+# 查看日志
+docker-compose -f docker-compose.prod.yml logs -f
 
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-```
-
-## 常用管理命令
-
-### 重启服务
-
-```bash
+# 重启服务
 docker-compose -f docker-compose.prod.yml restart
-```
 
-### 重启特定服务
+# 更新服务
+docker-compose -f docker-compose.prod.yml pull
+docker-compose -f docker-compose.prod.yml up -d
 
-```bash
-docker-compose -f docker-compose.prod.yml restart server
-```
-
-### 停止服务
-
-```bash
+# 停止服务
 docker-compose -f docker-compose.prod.yml down
 ```
 
-### 更新镜像
+---
 
-#### 使用GitHub Container Registry（推荐）
+## 检查清单
 
-如果已配置GitHub Actions自动构建，首先修改 `docker-compose.prod.yml` 使用预构建的镜像：
+部署前确认：
 
-```yaml
-server:
-  image: ghcr.io/corps-cy/ai-service-platform-server:latest
-  # 移除 build 配置
+- [ ] Docker和Docker Compose已安装
+- [ ] 目录已创建 (data, uploads, logs)
+- [ ] Docker服务已启动
+- [ ] Nginx已配置
+- [ ] 域名DNS已解析到服务器
+- [ ] 防火墙已开放80/443端口
+- [ ] SSL证书已配置（生产环境）
 
-client:
-  image: ghcr.io/corps-cy/ai-service-platform-client:latest
-  # 移除 build 配置
-```
+---
 
-然后拉取最新镜像并重启：
+## 技术支持
 
-```bash
-docker-compose -f docker-compose.prod.yml pull
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-#### 本地构建
-
-如果需要本地构建：
-
-```bash
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### 进入容器
-
-```bash
-# 进入Server容器
-docker-compose -f docker-compose.prod.yml exec server bash
-
-# 进入Redis容器
-docker-compose -f docker-compose.prod.yml exec redis redis-cli
-```
-
-### 备份数据
-
-```bash
-# 备份数据库
-cp ./data/database.sqlite ./backups/database_$(date +%Y%m%d).sqlite
-
-# 备份Redis
-docker-compose -f docker-compose.prod.yml exec redis redis-cli BGSAVE
-```
-
-### 恢复数据
-
-```bash
-# 恢复数据库
-cp ./backups/database_20250101.sqlite ./data/database.sqlite
-```
-
-## 监控和维护
-
-### 检查磁盘空间
-
-```bash
-df -h
-```
-
-### 清理Docker镜像
-
-```bash
-docker system prune -a
-```
-
-### 查看资源使用
-
-```bash
-docker stats
-```
-
-## 故障排查
-
-### 服务无法启动
-
-1. 查看日志：
-```bash
-docker-compose -f docker-compose.prod.yml logs
-```
-
-2. 检查端口占用：
-```bash
-netstat -tlnp | grep -E ':(80|3001|6379)'
-```
-
-### 数据库连接失败
-
-1. 检查数据库文件权限：
-```bash
-ls -la ./data/
-```
-
-2. 检查数据库配置：
-```bash
-docker-compose -f docker-compose.prod.yml exec server cat .env | grep DATABASE
-```
-
-### Redis连接失败
-
-1. 测试Redis连接：
-```bash
-docker-compose -f docker-compose.prod.yml exec server redis-cli -h redis -p 6379 ping
-```
-
-### 邮件发送失败
-
-1. 检查邮件配置：
-```bash
-docker-compose -f docker-compose.prod.yml logs server | grep -i email
-```
-
-2. 测试SMTP连接：
-```bash
-telnet smtp.gmail.com 587
-```
-
-## 安全建议
-
-1. **定期更新镜像**
-   ```bash
-   docker-compose -f docker-compose.prod.yml pull
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
-2. **使用强密码**
-   - 修改JWT_SECRET
-   - 使用强数据库密码
-   - 定期更换API密钥
-
-3. **启用防火墙**
-   ```bash
-   sudo ufw allow 80/tcp
-   sudo ufw allow 443/tcp
-   sudo ufw allow 22/tcp
-   sudo ufw enable
-   ```
-
-4. **配置自动备份**
-   - 使用cron定时备份数据库
-   - 将备份文件发送到远程存储
-
-5. **监控服务状态**
-   - 使用监控工具（如Prometheus、Grafana）
-   - 配置告警通知
-
-## 性能优化
-
-1. **调整Redis配置**
-   - 根据内存大小调整maxmemory
-   - 配置合适的eviction策略
-
-2. **调整日志级别**
-   - 生产环境使用info或warn级别
-   - 定期清理旧日志文件
-
-3. **启用Gzip压缩**
-   - 在Nginx配置中启用gzip
-   - 减少传输数据量
-
-4. **配置CDN**
-   - 为静态资源配置CDN
-   - 加速内容分发
-
-## 更新日志
-
-- 更新Docker镜像后，执行：
-  ```bash
-  docker-compose -f docker-compose.prod.yml pull
-  docker-compose -f docker-compose.prod.yml up -d
-  ```
-
-- 查看更新状态：
-  ```bash
-  docker-compose -f docker-compose.prod.yml ps
-  ```
-
-## 支持
-
-如有问题，请：
-1. 查看日志文件
-2. 检查GitHub Issues
-3. 提交新的Issue
+- GitHub: https://github.com/Corps-Cy/ai-service-platform
+- Issues: https://github.com/Corps-Cy/ai-service-platform/issues
