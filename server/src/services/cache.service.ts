@@ -1,4 +1,4 @@
-import { createClient, RedisClientType } from 'ioredis';
+import Redis from 'ioredis';
 import logger from '../utils/logger.js';
 
 // Redis配置
@@ -10,9 +10,9 @@ const redisConfig = {
 };
 
 // 创建Redis客户端用于缓存
-const cacheClient: RedisClientType = createClient(redisConfig) as any;
+const cacheClient = new Redis(redisConfig);
 
-cacheClient.on('error', (error) => {
+cacheClient.on('error', (error: any) => {
   logger.error('Cache Redis connection error', { error: error.message });
 });
 

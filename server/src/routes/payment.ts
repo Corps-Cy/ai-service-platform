@@ -160,8 +160,8 @@ router.post('/wechat/notify', async (req: Request, res: Response) => {
 
     logger.info('WeChat notify received', {
       orderNo: out_trade_no,
-      tradeState,
-      transactionId,
+      tradeState: trade_state,
+      transactionId: transaction_id,
     });
 
     if (trade_state === 'SUCCESS') {
@@ -249,8 +249,8 @@ router.post('/alipay/notify', async (req: Request, res: Response) => {
 
     logger.info('Alipay notify received', {
       orderNo: out_trade_no,
-      tradeStatus,
-      tradeNo,
+      tradeStatus: trade_status,
+      tradeNo: trade_no,
     });
 
     if (trade_status === 'TRADE_SUCCESS' || trade_status === 'TRADE_FINISHED') {
@@ -377,7 +377,7 @@ router.get('/order/:orderNo', authMiddleware, async (req: any, res: Response) =>
     const db = getDatabase();
     const order = db.prepare(
       'SELECT * FROM orders WHERE order_no = ? AND user_id = ?'
-    ).get(req.params.orderNo, req.userId);
+    ).get(req.params.orderNo, req.userId) as any;
 
     if (!order) {
       return res.status(404).json({ error: '订单不存在' });

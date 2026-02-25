@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getDatabase } from '../models/database.js';
 import logger from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { getQueueStats } from '../queue/index.js';
+import { getQueueStats, emailQueue } from '../queue/index.js';
 import { getCacheStats } from '../services/cache.service.js';
 
 const router = Router();
@@ -614,7 +614,7 @@ router.post('/subscriptions/check-expiry', adminAuthMiddleware, async (req: Requ
 
     let updatedCount = 0;
 
-    for (const sub of expiredSubscriptions) {
+    for (const sub of expiredSubscriptions as any[]) {
       db.prepare('UPDATE subscriptions SET status = ? WHERE id = ?').run('expired', sub.id);
       updatedCount++;
 
@@ -661,7 +661,7 @@ router.post('/subscriptions/send-expiry-reminders', adminAuthMiddleware, async (
 
     let sentCount = 0;
 
-    for (const sub of expiringSubscriptions) {
+    for (const sub of expiringSubscriptions as any[]) {
       const expiresAt = new Date(sub.expires_at);
       const daysLeft = Math.ceil((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 

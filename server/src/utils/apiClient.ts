@@ -1,15 +1,14 @@
 import axiosRetry, { IAxiosRetryConfig } from 'axios-retry';
 import axios from 'axios';
-import logger from '../utils/logger';
+import logger from './logger.js';
 
 // 重试配置
 const retryConfig: IAxiosRetryConfig = {
   retries: 3,
-  retryDelay: 1000,
   retryCondition: (error) => {
     // 仅对网络错误或5xx错误重试
     const isNetworkError = !error.response;
-    const isServerError = error.response?.status >= 500;
+    const isServerError = error.response?.status !== undefined && error.response.status >= 500;
     const isRateLimitError = error.response?.status === 429;
     
     // 429 (限流) 和网络错误可以重试
@@ -18,7 +17,7 @@ const retryConfig: IAxiosRetryConfig = {
   onRetry: (retryCount, error, requestConfig) => {
     logger.warn(`Retry attempt ${retryCount} for ${requestConfig.url}`, {
       error: error.message,
-    retryCount,
+      retryCount,
     });
   },
   shouldResetTimeout: true,

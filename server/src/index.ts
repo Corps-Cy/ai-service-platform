@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initDatabase } from './models/database.js';
-import { initRoutes } from './routes/index.js';
+import routes from './routes/index.js';
 import logger from './utils/logger.js';
 import requestLogger from './middleware/requestLogger.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -66,7 +66,7 @@ initDatabase();
 logger.info('🚀 Starting AI Service Platform server...');
 
 // API 路由
-app.use('/api', initRoutes());
+app.use('/api', routes);
 
 // 错误处理（必须放在所有路由之后）
 app.use(errorHandler);

@@ -8,7 +8,7 @@ const __dirname = dirname(__filename);
 
 let db: Database.Database | null = null;
 
-export function initDatabase() {
+export function initDatabase(): void {
   const dbPath = process.env.DATABASE_PATH || join(__dirname, '../../data/database.sqlite');
   db = new Database(dbPath);
 

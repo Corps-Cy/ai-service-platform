@@ -13,20 +13,9 @@ const redisConfig = {
   db: parseInt(process.env.REDIS_DB || '0'),
 };
 
-// 创建Redis连接
-const redisConnection = new ioredis(redisConfig);
-
-redisConnection.on('error', (error) => {
-  logger.error('Redis connection error', { error: error.message });
-});
-
-redisConnection.on('connect', () => {
-  logger.info('Redis connected successfully');
-});
-
 // 队列配置
 const queueOptions: QueueOptions = {
-  connection: redisConnection,
+  redis: redisConfig,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -380,7 +369,6 @@ export async function cleanQueue(grace: number = 5000) {
 export async function closeQueues() {
   await taskQueue.close();
   await emailQueue.close();
-  await redisConnection.quit();
 
   logger.info('Queues closed');
 }
@@ -410,5 +398,3 @@ taskQueue.on('stalled', (job: Job) => {
     type: job.data.type,
   });
 });
-
-export { redisConnection };

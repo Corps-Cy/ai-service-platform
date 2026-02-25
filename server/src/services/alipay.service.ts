@@ -1,5 +1,4 @@
-import AlipaySdk from 'alipay-sdk';
-import AlipayFormData from 'alipay-sdk/lib/form.js';
+import AlipaySdk = require('alipay-sdk');
 import logger from '../utils/logger.js';
 import { AppError } from '../middleware/errorHandler.js';
 
@@ -11,12 +10,12 @@ const ALIPAY_CONFIG = {
   gateway: process.env.ALIPAY_GATEWAY || 'https://openapi.alipay.com/gateway.do',
   charset: 'utf-8',
   version: '1.0',
-  signType: 'RSA2',
+  signType: 'RSA2' as const,
   notifyUrl: process.env.ALIPAY_NOTIFY_URL || 'https://yourdomain.com/api/payment/alipay/notify',
 };
 
 // 初始化支付宝SDK
-let alipaySdk: AlipaySdk | null = null;
+let alipaySdk: InstanceType<typeof AlipaySdk> | null = null;
 
 function initAlipay() {
   try {
@@ -31,7 +30,7 @@ function initAlipay() {
       gateway: ALIPAY_CONFIG.gateway,
       charset: ALIPAY_CONFIG.charset,
       version: ALIPAY_CONFIG.version,
-      signType: ALIPAY_CONFIG.signType as 'RSA2',
+      signType: ALIPAY_CONFIG.signType,
     });
 
     logger.info('Alipay SDK initialized');
@@ -57,21 +56,18 @@ export async function createAlipayWebPayOrder(
   }
 
   try {
-    const formData = new AlipayFormData();
-    formData.setMethod('get');
-    formData.addField('returnUrl', returnUrl);
-    formData.addField('bizContent', {
-      outTradeNo: orderNo,
-      productCode: 'FAST_INSTANT_TRADE_PAY',
-      totalAmount: totalAmount.toFixed(2),
-      subject: subject,
-    });
+    const params = {
+      returnUrl,
+      notifyUrl: ALIPAY_CONFIG.notifyUrl,
+      bizContent: {
+        outTradeNo: orderNo,
+        productCode: 'FAST_INSTANT_TRADE_PAY',
+        totalAmount: totalAmount.toFixed(2),
+        subject,
+      },
+    };
 
-    const result = await alipaySdk.exec(
-      'alipay.trade.page.pay',
-      {},
-      { formData: formData }
-    );
+    const result = await alipaySdk.exec('alipay.trade.page.pay', {}, params);
 
     logger.info('Alipay web order created', { orderNo });
 
@@ -105,22 +101,19 @@ export async function createAlipayWapPayOrder(
   }
 
   try {
-    const formData = new AlipayFormData();
-    formData.setMethod('get');
-    formData.addField('returnUrl', returnUrl);
-    formData.addField('quitUrl', quitUrl);
-    formData.addField('bizContent', {
-      outTradeNo: orderNo,
-      productCode: 'QUICK_WAP_WAY',
-      totalAmount: totalAmount.toFixed(2),
-      subject: subject,
-    });
+    const params = {
+      returnUrl,
+      quitUrl,
+      notifyUrl: ALIPAY_CONFIG.notifyUrl,
+      bizContent: {
+        outTradeNo: orderNo,
+        productCode: 'QUICK_WAP_WAY',
+        totalAmount: totalAmount.toFixed(2),
+        subject,
+      },
+    };
 
-    const result = await alipaySdk.exec(
-      'alipay.trade.wap.pay',
-      {},
-      { formData: formData }
-    );
+    const result = await alipaySdk.exec('alipay.trade.wap.pay', {}, params);
 
     logger.info('Alipay WAP order created', { orderNo });
 
@@ -151,22 +144,20 @@ export async function createAlipayQRCodePayOrder(
   }
 
   try {
-    const formData = new AlipayFormData();
-    formData.addField('bizContent', {
-      outTradeNo: orderNo,
-      totalAmount: totalAmount.toFixed(2),
-      subject: subject,
-    });
+    const params = {
+      notifyUrl: ALIPAY_CONFIG.notifyUrl,
+      bizContent: {
+        outTradeNo: orderNo,
+        totalAmount: totalAmount.toFixed(2),
+        subject,
+      },
+    };
 
-    const result = await alipaySdk.exec(
-      'alipay.trade.precreate',
-      {},
-      { formData: formData }
-    );
+    const result = await alipaySdk.exec('alipay.trade.precreate', {}, params);
 
-    const qrCodeUrl = result?.qrCode || '';
+    const qrCodeUrl = (result as any)?.qrCode || '';
 
-    logger.info('Alipay QR code order created', { orderNo, responseCode: result?.code });
+    logger.info('Alipay QR code order created', { orderNo, responseCode: (result as any)?.code });
 
     return {
       qr_code_url: qrCodeUrl,
@@ -215,13 +206,15 @@ export async function queryAlipayOrder(orderNo: string): Promise<any> {
   }
 
   try {
-    const result = await alipaySdk.exec('alipay.trade.query', {}, {
+    const params = {
       bizContent: {
         outTradeNo: orderNo,
       },
-    });
+    };
 
-    logger.info('Alipay order queried', { orderNo, tradeStatus: result?.tradeStatus });
+    const result = await alipaySdk.exec('alipay.trade.query', {}, params);
+
+    logger.info('Alipay order queried', { orderNo, tradeStatus: (result as any)?.tradeStatus });
 
     return result;
   } catch (error: any) {
@@ -244,13 +237,15 @@ export async function closeAlipayOrder(orderNo: string): Promise<void> {
   }
 
   try {
-    const result = await alipaySdk.exec('alipay.trade.close', {}, {
+    const params = {
       bizContent: {
         outTradeNo: orderNo,
       },
-    });
+    };
 
-    logger.info('Alipay order closed', { orderNo, code: result?.code });
+    const result = await alipaySdk.exec('alipay.trade.close', {}, params);
+
+    logger.info('Alipay order closed', { orderNo, code: (result as any)?.code });
   } catch (error: any) {
     logger.error('Alipay order close failed', {
       error: error.message,
@@ -276,19 +271,21 @@ export async function refundAlipayOrder(
   }
 
   try {
-    const result = await alipaySdk.exec('alipay.trade.refund', {}, {
+    const params = {
       bizContent: {
         outTradeNo: orderNo,
         outRequestNo: refundOrderNo,
         refundAmount: refundAmount.toFixed(2),
         refundReason: refundReason,
       },
-    });
+    };
 
-    logger.info('Alipay refund created', { orderNo, refundOrderNo, fundChange: result?.fundChange });
+    const result = await alipaySdk.exec('alipay.trade.refund', {}, params);
+
+    logger.info('Alipay refund created', { orderNo, refundOrderNo, fundChange: (result as any)?.fundChange });
 
     return {
-      fund_change: result?.fundChange || 'N',
+      fund_change: (result as any)?.fundChange || 'N',
     };
   } catch (error: any) {
     logger.error('Alipay refund creation failed', {
