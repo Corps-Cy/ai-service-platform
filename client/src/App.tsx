@@ -55,7 +55,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/init" element={<InitConfig />} />
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/register" element={<Register onRegister={handleLogin} />} />
         <Route
           path="/dashboard"
           element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}

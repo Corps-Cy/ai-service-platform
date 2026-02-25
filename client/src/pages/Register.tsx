@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, Lock, CheckCircle, Brain, ArrowRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, CheckCircle, Brain, ArrowRight } from 'lucide-react';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
 
-const Register: React.FC = () => {
+interface RegisterProps {
+  onRegister?: () => void;
+}
+
+const Register: React.FC<RegisterProps> = ({ onRegister }) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -37,9 +42,21 @@ const Register: React.FC = () => {
     setLoading(true);
 
     try {
-      await apiService.register(formData.email, formData.password, formData.nickname);
-      toast.success('注册成功！请登录');
-      // 导航到登录页面会在API成功后由应用状态管理
+      const response = await apiService.register(formData.email, formData.password, formData.nickname);
+      const { token } = response.data;
+      
+      // 保存token
+      localStorage.setItem('token', token);
+      
+      // 通知父组件
+      if (onRegister) {
+        onRegister();
+      }
+      
+      toast.success('注册成功！');
+      
+      // 跳转到仪表板
+      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.error || '注册失败');
     } finally {
@@ -74,13 +91,14 @@ const Register: React.FC = () => {
                 昵称
               </label>
               <div className="relative">
+                <CheckCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   id="nickname"
                   type="text"
                   value={formData.nickname}
                   onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                   className="input pl-10"
-                  placeholder="请输入您的昵称"
+                  placeholder="您的昵称"
                   required
                 />
               </div>
@@ -118,20 +136,21 @@ const Register: React.FC = () => {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="input pl-10 pr-10"
-                  placeholder="至少6位"
+                  placeholder="至少6位字符"
                   required
+                  minLength={6}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
                 >
-                  {showPassword ? <CheckCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 opacity-30" />}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            {/* 确认密码输入 */}
+            {/* 确认密码 */}
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
                 确认密码
@@ -146,13 +165,14 @@ const Register: React.FC = () => {
                   className="input pl-10 pr-10"
                   placeholder="再次输入密码"
                   required
+                  minLength={6}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
                 >
-                  {showConfirmPassword ? <CheckCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 opacity-30" />}
+                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -160,7 +180,7 @@ const Register: React.FC = () => {
             {/* 注册按钮 */}
             <button
               type="submit"
-              disabled={loading || !formData.email || !formData.password || !formData.nickname}
+              disabled={loading}
               className={`btn btn-primary w-full flex items-center justify-center ${
                 loading ? 'opacity-70 cursor-not-allowed' : ''
               }`}
@@ -172,7 +192,8 @@ const Register: React.FC = () => {
                 </>
               ) : (
                 <>
-                  注册账户
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  创建账户
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </>
               )}
@@ -183,16 +204,16 @@ const Register: React.FC = () => {
           <div className="mt-8 pt-6 border-t border-gray-100">
             <p className="text-center text-sm text-gray-600">
               已有账户？
-              <Link to="/login" className="text-[#6366F1] font-semibold hover:underline ml-1">
-                登录
+              <Link to="/login" className="text-[#6366F1] font-semibold hover:underline">
+                立即登录
               </Link>
             </p>
           </div>
         </div>
 
         {/* 装饰性背景元素 */}
-        <div className="fixed top-32 -left-20 w-72 h-72 bg-white rounded-full blur-3xl opacity-10 pointer-events-none"></div>
-        <div className="fixed bottom-32 -right-20 w-96 h-96 bg-white rounded-full blur-3xl opacity-10 pointer-events-none"></div>
+        <div className="fixed top-20 -left-20 w-72 h-72 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
+        <div className="fixed bottom-20 -right-20 w-96 h-96 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
       </div>
     </div>
   );

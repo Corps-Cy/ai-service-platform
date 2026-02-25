@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Mail, Eye, EyeOff, ArrowRight, Brain } from 'lucide-react';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
 
-const Login: React.FC = () => {
+interface LoginProps {
+  onLogin: () => void;
+}
+
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -15,9 +20,19 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      await apiService.login(email, password);
-      toast.success('登录成功');
-      // 导航会自动处理
+      const response = await apiService.login(email, password);
+      const { token } = response.data;
+      
+      // 保存token
+      localStorage.setItem('token', token);
+      
+      // 更新认证状态
+      onLogin();
+      
+      toast.success('登录成功！');
+      
+      // 跳转到仪表板
+      navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.error || '登录失败');
     } finally {
