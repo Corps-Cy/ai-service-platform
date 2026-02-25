@@ -1,4 +1,6 @@
-import axios from 'axios';
+import apiClient from '../utils/apiClient.js';
+import logger from '../utils/logger.js';
+import { AppError } from '../middleware/errorHandler.js';
 
 const ZHIPU_BASE_URL = process.env.ZHIPU_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
 const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY;
@@ -37,57 +39,82 @@ class ZhipuService {
     this.apiKey = ZHIPU_API_KEY;
   }
 
-  private getHeaders() {
-    return {
-      'Authorization': `Bearer ${this.apiKey}`,
-      'Content-Type': 'application/json'
-    };
-  }
-
   // 文生图 (CogView)
   async generateImage(options: ImageGenOptions): Promise<any> {
+    logger.info('Image generation request', { prompt: options.prompt });
+    
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/images/generations`,
         {
           model: 'cogview-3',
           prompt: options.prompt,
           size: options.size || '1024x1024',
           n: options.num || 1
-        },
-        { headers: this.getHeaders() }
+        }
       );
+      
+      logger.info('Image generation success', { 
+        prompt: options.prompt,
+        resultCount: response.data?.data?.length || 1 
+      });
+      
       return response.data;
     } catch (error: any) {
-      console.error('Image generation error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || '图片生成失败');
+      logger.error('Image generation failed', {
+        error: error.response?.data || error.message,
+        prompt: options.prompt
+      });
+      
+      if (error.response?.status === 429) {
+        throw new AppError(429, '请求过于频繁，请稍后再试');
+      }
+      
+      throw new AppError(500, error.response?.data?.message || '图片生成失败');
     }
   }
 
   // 文本生成 (GLM-4)
   async generateText(options: TextGenOptions): Promise<any> {
+    logger.info('Text generation request', { model: options.model, messageCount: options.messages.length });
+    
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/chat/completions`,
         {
           model: options.model || 'glm-4',
           messages: options.messages,
           temperature: options.temperature || 0.7,
           max_tokens: options.max_tokens || 2000
-        },
-        { headers: this.getHeaders() }
+        }
       );
+      
+      logger.info('Text generation success', { 
+        model: options.model,
+        tokensUsed: response.data?.usage?.total_tokens 
+      });
+      
       return response.data;
     } catch (error: any) {
-      console.error('Text generation error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || '文本生成失败');
+      logger.error('Text generation failed', {
+        error: error.response?.data || error.message,
+        model: options.model
+      });
+      
+      if (error.response?.status === 429) {
+        throw new AppError(429, '请求过于频繁，请稍后再试');
+      }
+      
+      throw new AppError(500, error.response?.data?.message || '文本生成失败');
     }
   }
 
   // 图片理解 (GLM-4V)
   async understandImage(options: ImageUnderstandOptions): Promise<any> {
+    logger.info('Image understanding request');
+    
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/chat/completions`,
         {
           model: 'glm-4v',
@@ -100,20 +127,31 @@ class ZhipuService {
               ]
             }
           ]
-        },
-        { headers: this.getHeaders() }
+        }
       );
+      
+      logger.info('Image understanding success');
+      
       return response.data;
     } catch (error: any) {
-      console.error('Image understanding error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || '图片理解失败');
+      logger.error('Image understanding failed', {
+        error: error.response?.data || error.message
+      });
+      
+      if (error.response?.status === 429) {
+        throw new AppError(429, '请求过于频繁，请稍后再试');
+      }
+      
+      throw new AppError(500, error.response?.data?.message || '图片理解失败');
     }
   }
 
   // 文档处理（PDF解析）
   async parseDocument(content: string, task: string): Promise<any> {
+    logger.info('Document processing request', { task, contentLength: content.length });
+    
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/chat/completions`,
         {
           model: 'glm-4',
@@ -129,21 +167,33 @@ class ZhipuService {
           ],
           temperature: 0.3,
           max_tokens: 4000
-        },
-        { headers: this.getHeaders() }
+        }
       );
+      
+      logger.info('Document processing success');
+      
       return response.data;
     } catch (error: any) {
-      console.error('Document parsing error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || '文档处理失败');
+      logger.error('Document processing failed', {
+        error: error.response?.data || error.message,
+        task
+      });
+      
+      if (error.response?.status === 429) {
+        throw new AppError(429, '请求过于频繁，请稍后再试');
+      }
+      
+      throw new AppError(500, error.response?.data?.message || '文档处理失败');
     }
   }
 
   // Excel操作（生成/分析）
   async processExcel(instruction: string, data?: any): Promise<any> {
+    logger.info('Excel processing request', { hasData: !!data, instruction });
+    
     try {
       const content = data ? `现有数据：\n${JSON.stringify(data, null, 2)}\n` : '';
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/chat/completions`,
         {
           model: 'glm-4',
@@ -159,32 +209,51 @@ class ZhipuService {
           ],
           temperature: 0.5,
           max_tokens: 3000
-        },
-        { headers: this.getHeaders() }
+        }
       );
+      
+      logger.info('Excel processing success');
+      
       return response.data;
     } catch (error: any) {
-      console.error('Excel processing error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'Excel处理失败');
+      logger.error('Excel processing failed', {
+        error: error.response?.data || error.message,
+        instruction
+      });
+      
+      if (error.response?.status === 429) {
+        throw new AppError(429, '请求过于频繁，请稍后再试');
+      }
+      
+      throw new AppError(500, error.response?.data?.message || 'Excel处理失败');
     }
   }
 
   // 视频生成（如果API支持）
   async generateVideo(prompt: string, duration: number = 5): Promise<any> {
+    logger.info('Video generation request', { prompt, duration });
+    
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${ZHIPU_BASE_URL}/videos/generations`,
         {
           model: 'cogvideox',
           prompt: prompt,
           duration: duration
-        },
-        { headers: this.getHeaders() }
+        }
       );
+      
+      logger.info('Video generation success');
+      
       return response.data;
     } catch (error: any) {
-      console.error('Video generation error:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || '视频生成失败，功能可能暂未开放');
+      logger.error('Video generation failed', {
+        error: error.response?.data || error.message,
+        prompt
+      });
+      
+      // 视频生成可能暂未开放，返回友好提示
+      throw new AppError(400, '视频生成功能暂未开放，请稍后再试');
     }
   }
 }

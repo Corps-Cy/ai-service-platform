@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Lock, Mail, Eye, EyeOff, ArrowRight, Brain } from 'lucide-react';
 import { apiService } from '../services/api';
 import toast from 'react-hot-toast';
 
-const Login: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
-  const navigate = useNavigate();
+const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await apiService.login(email, password);
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      await apiService.login(email, password);
       toast.success('登录成功');
-      onLogin();
-      navigate('/dashboard');
+      // 导航会自动处理
     } catch (error: any) {
       toast.error(error.response?.data?.error || '登录失败');
     } finally {
@@ -28,63 +26,108 @@ const Login: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">登录</h2>
-          <p className="mt-2 text-gray-600">欢迎回来</p>
+    <div className="min-h-screen bg-[#F5F3FF] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8 animate-fade-in">
+          <Link to="/" className="inline-flex items-center space-x-2 group">
+            <div className="bg-gradient-to-br from-[#6366F1] to-[#818CF8] p-3 rounded-xl group-hover:scale-110 transition-transform duration-200">
+              <Brain className="w-8 h-8 text-white" />
+            </div>
+            <span className="text-2xl font-bold text-[#1E1B4B]">AI服务平台</span>
+          </Link>
         </div>
 
-        <div className="card">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        {/* 登录卡片 */}
+        <div className="card animate-slide-up">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-[#1E1B4B] mb-2">欢迎回来</h1>
+            <p className="text-gray-600">登录您的账户继续使用AI服务</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            {/* 邮箱输入 */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                邮箱
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                邮箱地址
               </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input"
-                placeholder="your@email.com"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input pl-10"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
             </div>
 
+            {/* 密码输入 */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
                 密码
               </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pl-10 pr-10"
+                  placeholder="•••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 text-gray-400 hover:text-[#6366F1] transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
+            {/* 登录按钮 */}
             <button
               type="submit"
-              disabled={loading}
-              className="btn btn-primary w-full"
+              disabled={loading || !email || !password}
+              className={`btn btn-primary w-full flex items-center justify-center ${
+                loading ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
             >
-              {loading ? '登录中...' : '登录'}
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-transparent rounded-full animate-spin mr-2"></div>
+                  登录中...
+                </>
+              ) : (
+                <>
+                  <Lock className="w-5 h-5 mr-2" />
+                  登录
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              还没有账号？{' '}
-              <Link to="/register" className="text-blue-600 hover:text-blue-700">
+          {/* 底部链接 */}
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <p className="text-center text-sm text-gray-600">
+              还没有账户？
+              <Link to="/register" className="text-[#6366F1] font-semibold hover:underline">
                 立即注册
               </Link>
             </p>
           </div>
         </div>
+
+        {/* 装饰性背景元素 */}
+        <div className="fixed top-20 -left-20 w-72 h-72 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
+        <div className="fixed bottom-20 -right-20 w-96 h-96 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
       </div>
     </div>
   );

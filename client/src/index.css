@@ -1,14 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color: #213547;
-  background-color: #f5f5f5;
+  color: #1E1B4B;
+  background-color: #F5F3FF;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -30,23 +32,43 @@ body {
 }
 
 .btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 cursor-pointer;
+  @apply px-6 py-3 rounded-lg font-semibold transition-all duration-200 ease-in-out cursor-pointer;
 }
 
 .btn-primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700;
+  @apply bg-[#10B981] hover:bg-[#059669] text-white shadow-lg shadow-emerald-500/30;
+}
+
+.btn-primary:hover {
+  @apply shadow-emerald-500/50 transform scale-105;
 }
 
 .btn-secondary {
-  @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+  @apply bg-[#6366F1] hover:bg-[#4F46E5] text-white shadow-lg shadow-indigo-500/30;
+}
+
+.btn-secondary:hover {
+  @apply shadow-indigo-500/50 transform scale-105;
+}
+
+.btn-ghost {
+  @apply bg-transparent hover:bg-[#F5F3FF] text-[#6366F1];
+}
+
+.btn-ghost:hover {
+  @apply bg-[#F5F3FF]/50;
 }
 
 .input {
-  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500;
+  @apply w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6366F1] focus:border-transparent transition-all duration-200;
 }
 
 .card {
-  @apply bg-white rounded-lg shadow-md p-6;
+  @apply bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-6;
+}
+
+.card:hover {
+  @apply border-[#6366F1]/20;
 }
 
 .loading {
@@ -59,4 +81,52 @@ body {
 
 .success {
   @apply text-green-600;
+}
+
+/* AI-Native UI Effects */
+.typing-indicator {
+  @apply flex space-x-1;
+}
+
+.typing-dot {
+  @apply w-2 h-2 bg-[#6366F1] rounded-full animate-typing-dot;
+}
+
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+.pulse-glow {
+  @apply animate-pulse-glow;
+}
+
+/* Gradient backgrounds */
+.gradient-hero {
+  background: linear-gradient(135deg, #6366F1 0%, #818CF8 100%);
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  @apply outline-none ring-2 ring-[#6366F1] ring-offset-2;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

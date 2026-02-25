@@ -1,12 +1,13 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { zhipuService } from '../services/zhipu.service.js';
 import { getDatabase } from '../models/database.js';
 import { generateTaskId } from '../services/payment.service.js';
+import { apiLimiter, uploadLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
 // 认证中间件
-const authMiddleware = (req: any, res: Response, next: any) => {
+const authMiddleware = (req: any, res: any, next: any) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
 
   if (!token) {
@@ -23,8 +24,8 @@ const authMiddleware = (req: any, res: Response, next: any) => {
   }
 };
 
-// 文生图
-router.post('/image', authMiddleware, async (req: any, res: Response) => {
+// 文生图 - 基础限流
+router.post('/image', authMiddleware, async (req: any, res: any) => {
   try {
     const { prompt, size, num } = req.body;
 
@@ -68,8 +69,8 @@ router.post('/image', authMiddleware, async (req: any, res: Response) => {
   }
 });
 
-// 文本生成
-router.post('/text', authMiddleware, async (req: any, res: Response) => {
+// 文本生成 - 基础限流
+router.post('/text', authMiddleware, async (req: any, res: any) => {
   try {
     const { model, messages, temperature, maxTokens } = req.body;
 
@@ -112,8 +113,8 @@ router.post('/text', authMiddleware, async (req: any, res: Response) => {
   }
 });
 
-// 图片理解
-router.post('/image-understand', authMiddleware, async (req: any, res: Response) => {
+// 图片理解 - 基础限流
+router.post('/image-understand', authMiddleware, async (req: any, res: any) => {
   try {
     const { image, prompt } = req.body;
 
@@ -152,8 +153,8 @@ router.post('/image-understand', authMiddleware, async (req: any, res: Response)
   }
 });
 
-// 文档处理
-router.post('/document', authMiddleware, async (req: any, res: Response) => {
+// 文档处理 - 上传限流（更严格）
+router.post('/document', uploadLimiter, authMiddleware, async (req: any, res: any) => {
   try {
     const { content, task } = req.body;
 
@@ -192,8 +193,8 @@ router.post('/document', authMiddleware, async (req: any, res: Response) => {
   }
 });
 
-// Excel操作
-router.post('/excel', authMiddleware, async (req: any, res: Response) => {
+// Excel操作 - 基础限流
+router.post('/excel', authMiddleware, async (req: any, res: any) => {
   try {
     const { instruction, data } = req.body;
 
@@ -232,8 +233,8 @@ router.post('/excel', authMiddleware, async (req: any, res: Response) => {
   }
 });
 
-// 视频生成
-router.post('/video', authMiddleware, async (req: any, res: Response) => {
+// 视频生成 - API密钥限流
+router.post('/video', apiLimiter, authMiddleware, async (req: any, res: any) => {
   try {
     const { prompt, duration } = req.body;
 
@@ -286,7 +287,7 @@ router.post('/video', authMiddleware, async (req: any, res: Response) => {
 });
 
 // 获取任务列表
-router.get('/', authMiddleware, async (req: any, res: Response) => {
+router.get('/', authMiddleware, async (req: any, res: any) => {
   try {
     const { limit = 20, offset = 0 } = req.query;
 
@@ -303,7 +304,7 @@ router.get('/', authMiddleware, async (req: any, res: Response) => {
 });
 
 // 获取单个任务
-router.get('/:taskId', authMiddleware, async (req: any, res: Response) => {
+router.get('/:taskId', authMiddleware, async (req: any, res: any) => {
   try {
     const db = getDatabase();
     const task = db.prepare(
