@@ -23,7 +23,6 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 表单验证
     if (!formData.email || !formData.password || !formData.nickname) {
       toast.error('请填写所有字段');
       return;
@@ -40,6 +39,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
     }
 
     setLoading(true);
+    console.log('[Register] Starting registration for:', formData.email);
 
     try {
       const response = await apiService.register(
@@ -47,26 +47,42 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
         formData.password, 
         formData.nickname
       );
+      console.log('[Register] API response:', response);
       
-      // 检查响应
-      if (response.data && response.data.token) {
-        // 保存token
-        localStorage.setItem('token', response.data.token);
+      if (response && response.data) {
+        const { token } = response.data;
         
-        // 通知父组件更新认证状态
-        onRegister();
-        
-        toast.success('注册成功！');
-        
-        // 使用setTimeout确保状态更新后再导航
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 100);
+        if (token) {
+          console.log('[Register] Saving token to localStorage');
+          localStorage.setItem('token', token);
+          
+          const savedToken = localStorage.getItem('token');
+          console.log('[Register] Token saved, verification:', !!savedToken);
+          
+          if (!savedToken) {
+            console.error('[Register] Failed to save token!');
+            toast.error('注册状态保存失败，请检查浏览器设置');
+            return;
+          }
+          
+          console.log('[Register] Calling onRegister callback');
+          onRegister();
+          
+          toast.success('注册成功！');
+          
+          // 直接使用window.location跳转，强制页面刷新
+          console.log('[Register] Redirecting to /dashboard');
+          window.location.href = '/dashboard';
+        } else {
+          console.error('[Register] No token in response');
+          toast.error('注册失败：服务器未返回token');
+        }
       } else {
+        console.error('[Register] Invalid response structure');
         toast.error('注册失败：服务器响应异常');
       }
     } catch (error: any) {
-      console.error('Register error:', error);
+      console.error('[Register] Error:', error);
       const errorMessage = error.response?.data?.error || error.message || '注册失败';
       toast.error(errorMessage);
     } finally {
@@ -77,7 +93,6 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
   return (
     <div className="min-h-screen bg-[#F5F3FF] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8 animate-fade-in">
           <Link to="/" className="inline-flex items-center space-x-2 group">
             <div className="bg-gradient-to-br from-[#6366F1] to-[#818CF8] p-3 rounded-xl group-hover:scale-110 transition-transform duration-200">
@@ -87,7 +102,6 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
           </Link>
         </div>
 
-        {/* 注册卡片 */}
         <div className="card animate-slide-up">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-[#1E1B4B] mb-2">创建账户</h1>
@@ -95,11 +109,8 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
           </div>
 
           <form onSubmit={handleRegister} className="space-y-6">
-            {/* 昵称输入 */}
             <div>
-              <label htmlFor="nickname" className="block text-sm font-semibold text-gray-700 mb-2">
-                昵称
-              </label>
+              <label htmlFor="nickname" className="block text-sm font-semibold text-gray-700 mb-2">昵称</label>
               <div className="relative">
                 <CheckCircle className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -115,11 +126,8 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               </div>
             </div>
 
-            {/* 邮箱输入 */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                邮箱地址
-              </label>
+              <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">邮箱地址</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -135,11 +143,8 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               </div>
             </div>
 
-            {/* 密码输入 */}
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                密码
-              </label>
+              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">密码</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -164,11 +169,8 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               </div>
             </div>
 
-            {/* 确认密码 */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                确认密码
-              </label>
+              <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">确认密码</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -193,13 +195,10 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               </div>
             </div>
 
-            {/* 注册按钮 */}
             <button
               type="submit"
               disabled={loading}
-              className={`btn btn-primary w-full flex items-center justify-center ${
-                loading ? 'opacity-70 cursor-not-allowed' : ''
-              }`}
+              className={`btn btn-primary w-full flex items-center justify-center ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {loading ? (
                 <>
@@ -216,20 +215,13 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
             </button>
           </form>
 
-          {/* 底部链接 */}
           <div className="mt-8 pt-6 border-t border-gray-100">
             <p className="text-center text-sm text-gray-600">
               已有账户？
-              <Link to="/login" className="text-[#6366F1] font-semibold hover:underline ml-1">
-                立即登录
-              </Link>
+              <Link to="/login" className="text-[#6366F1] font-semibold hover:underline ml-1">立即登录</Link>
             </p>
           </div>
         </div>
-
-        {/* 装饰性背景元素 */}
-        <div className="fixed top-20 -left-20 w-72 h-72 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
-        <div className="fixed bottom-20 -right-20 w-96 h-96 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
       </div>
     </div>
   );

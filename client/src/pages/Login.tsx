@@ -24,29 +24,52 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
 
     setLoading(true);
+    console.log('[Login] Starting login for:', email);
 
     try {
       const response = await apiService.login(email, password);
+      console.log('[Login] API response:', response);
+      console.log('[Login] Response data:', response.data);
       
       // 检查响应
-      if (response.data && response.data.token) {
-        // 保存token
-        localStorage.setItem('token', response.data.token);
+      if (response && response.data) {
+        const { token } = response.data;
         
-        // 通知父组件更新认证状态
-        onLogin();
-        
-        toast.success('登录成功！');
-        
-        // 使用setTimeout确保状态更新后再导航
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 100);
+        if (token) {
+          // 保存token
+          console.log('[Login] Saving token to localStorage');
+          localStorage.setItem('token', token);
+          
+          // 验证token已保存
+          const savedToken = localStorage.getItem('token');
+          console.log('[Login] Token saved, verification:', !!savedToken);
+          
+          if (!savedToken) {
+            console.error('[Login] Failed to save token!');
+            toast.error('登录状态保存失败，请检查浏览器设置');
+            return;
+          }
+          
+          // 通知父组件
+          console.log('[Login] Calling onLogin callback');
+          onLogin();
+          
+          toast.success('登录成功！');
+          
+          // 直接使用window.location跳转，绕过React Router
+          console.log('[Login] Redirecting to /dashboard');
+          window.location.href = '/dashboard';
+        } else {
+          console.error('[Login] No token in response');
+          toast.error('登录失败：服务器未返回token');
+        }
       } else {
+        console.error('[Login] Invalid response structure');
         toast.error('登录失败：服务器响应异常');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('[Login] Error:', error);
+      console.error('[Login] Error response:', error.response);
       const errorMessage = error.response?.data?.error || error.message || '登录失败';
       toast.error(errorMessage);
     } finally {
@@ -156,10 +179,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </p>
           </div>
         </div>
-
-        {/* 装饰性背景元素 */}
-        <div className="fixed top-20 -left-20 w-72 h-72 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
-        <div className="fixed bottom-20 -right-20 w-96 h-96 bg-white rounded-full blur-3xl opacity-5 pointer-events-none"></div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -17,9 +17,11 @@ import './App.css';
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // 检查初始化状态
   useEffect(() => {
@@ -29,38 +31,54 @@ function App() {
         const data = await response.json();
         setIsInitialized(data.configured);
       } catch (error) {
-        // API失败，假设已初始化
         setIsInitialized(true);
       } finally {
         setLoading(false);
       }
     };
-
     checkInit();
   }, []);
 
-  // 检查认证状态
+  // 检查认证状态 - 只在初始化检查完成后执行
   useEffect(() => {
+    if (loading) return;
+    
     const token = localStorage.getItem('token');
+    console.log('[App] Checking auth, token exists:', !!token);
+    
     if (token) {
       setIsAuthenticated(true);
     }
-  }, []);
+    setAuthChecked(true);
+  }, [loading]);
 
-  // 登录处理
+  // 登录处理 - 由Login组件调用
   const handleLogin = () => {
+    console.log('[App] handleLogin called');
     setIsAuthenticated(true);
   };
 
   // 登出处理
   const handleLogout = () => {
+    console.log('[App] handleLogout called');
     localStorage.removeItem('token');
     setIsAuthenticated(false);
     navigate('/');
   };
 
+  // 调试输出
+  useEffect(() => {
+    console.log('[App] State:', { 
+      loading, 
+      isInitialized, 
+      isAuthenticated, 
+      authChecked,
+      currentPath: location.pathname 
+    });
+  }, [loading, isInitialized, isAuthenticated, authChecked, location.pathname]);
+
   // 加载中
-  if (loading) {
+  if (loading || !authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F3FF]">
         <div className="text-center">
@@ -71,19 +89,14 @@ function App() {
     );
   }
 
-  // 未初始化，显示初始化页面
+  // 未初始化
   if (isInitialized === false) {
-    return (
-      <Routes>
-        <Route path="*" element={<InitConfig />} />
-      </Routes>
-    );
+    return <Routes><Route path="*" element={<InitConfig />} /></Routes>;
   }
 
   return (
     <Layout isAuthenticated={isAuthenticated} onLogout={handleLogout}>
       <Routes>
-        {/* 公开路由 */}
         <Route path="/" element={<Home />} />
         <Route 
           path="/login" 
@@ -103,8 +116,6 @@ function App() {
         />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/init" element={<InitConfig />} />
-
-        {/* 需要认证的路由 */}
         <Route 
           path="/dashboard" 
           element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" replace />} 
@@ -133,8 +144,6 @@ function App() {
           path="/admin" 
           element={isAuthenticated ? <Admin /> : <Navigate to="/login" replace />} 
         />
-
-        {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
