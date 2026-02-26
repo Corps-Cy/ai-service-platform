@@ -21,7 +21,7 @@ const InitConfig: React.FC = () => {
 
   const [config, setConfig] = useState({
     zhipuApiKey: '',
-    jwtSecret: '',
+    jwtSecret: 'ai-platform-default-jwt-secret-key-2024', // 默认值
     databasePath: './data/database.sqlite',
     redisHost: 'localhost',
     redisPort: '6379',
@@ -69,9 +69,9 @@ const InitConfig: React.FC = () => {
       newErrors.zhipuApiKey = '智谱API密钥不能为空';
     }
 
-    if (!config.jwtSecret.trim()) {
-      newErrors.jwtSecret = 'JWT密钥不能为空';
-    } else if (config.jwtSecret.length < 16) {
+    // JWT_SECRET 有默认值，不再必填
+    // 但如果用户填写了，检查长度
+    if (config.jwtSecret && config.jwtSecret.trim() && config.jwtSecret.length < 16) {
       newErrors.jwtSecret = 'JWT密钥至少16个字符';
     }
 
@@ -191,7 +191,7 @@ const InitConfig: React.FC = () => {
             {/* JWT密钥 */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                JWT密钥 <span className="text-red-500">*</span>
+                JWT密钥 <span className="text-gray-400 text-xs">(可选，已有默认值)</span>
               </label>
               <div className="flex space-x-2">
                 <div className="flex-1">
@@ -199,7 +199,7 @@ const InitConfig: React.FC = () => {
                     type="password"
                     value={config.jwtSecret}
                     onChange={(e) => setConfig({ ...config, jwtSecret: e.target.value })}
-                    placeholder="请输入JWT密钥（至少16个字符）"
+                    placeholder="使用默认密钥（推荐生产环境更换）"
                     className={`w-full px-4 py-3 rounded-xl border ${
                       errors.jwtSecret ? 'border-red-500' : 'border-gray-200'
                     } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
@@ -216,7 +216,7 @@ const InitConfig: React.FC = () => {
                 </button>
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                用于加密用户令牌，请妥善保管
+                用于加密用户令牌。不填写将使用默认密钥。
               </p>
             </div>
 

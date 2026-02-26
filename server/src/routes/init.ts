@@ -9,9 +9,11 @@ const router = Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// 默认 JWT 密钥 - 与 auth.ts 中的默认值一致
+const DEFAULT_JWT_SECRET = 'ai-platform-default-jwt-secret-key-2024';
+
 // 获取.env文件路径
 const getEnvPath = () => {
-  // 尝试多个可能的.env文件位置
   const possiblePaths = [
     join(__dirname, '../../.env'),
     join(__dirname, '../../server/.env'),
@@ -26,7 +28,6 @@ const getEnvPath = () => {
     }
   }
 
-  // 如果都不存在，返回默认路径
   return join(process.cwd(), '.env');
 };
 
@@ -36,15 +37,17 @@ router.get('/status', async (req: Request, res: Response) => {
     const envPath = getEnvPath();
 
     if (!existsSync(envPath)) {
-      return res.json({ configured: false });
+      return res.json({ 
+        configured: false,
+        hasDefaultJwtSecret: true, // 使用默认值，可以正常使用
+      });
     }
 
-    // 读取.env文件，检查是否配置了必要参数
     const envContent = readFileSync(envPath, 'utf-8');
     const hasZhipuKey = envContent.includes('ZHIPU_API_KEY') && !envContent.includes('your_zhipu_api_key_here');
-    const hasJwtSecret = envContent.includes('JWT_SECRET') && !envContent.includes('your-secret-key-change-in-production');
+    const hasJwtSecret = envContent.includes('JWT_SECRET') && !envContent.includes('your-secret-key');
 
-    const configured = hasZhipuKey && hasJwtSecret;
+    const configured = hasZhipuKey;
 
     logger.info('Config status check', {
       envPath,
@@ -53,10 +56,18 @@ router.get('/status', async (req: Request, res: Response) => {
       hasJwtSecret,
     });
 
-    return res.json({ configured, envPath });
+    return res.json({ 
+      configured, 
+      envPath,
+      hasJwtSecret,
+      hasDefaultJwtSecret: true, // 总是返回 true，因为有默认值
+    });
   } catch (error: any) {
     logger.error('Config status check error', { error: error.message });
-    return res.json({ configured: false });
+    return res.json({ 
+      configured: false,
+      hasDefaultJwtSecret: true,
+    });
   }
 });
 
@@ -76,14 +87,14 @@ PORT=3001
 DATABASE_PATH=${config.databasePath || './data/database.sqlite'}
 
 # Frontend
-FRONTEND_URL=${process.env.FRONTEND_URL || 'http://localhost:80'}
+FRONTEND_URL=${process.env.FRONTEND_URL || 'http://localhost'}
 
 # ZhipuAI Configuration
 ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
 ZHIPU_API_KEY=${config.zhipuApiKey || ''}
 
-# JWT Secret
-JWT_SECRET=${config.jwtSecret || ''}
+# JWT Secret - 使用用户提供的值或默认值
+JWT_SECRET=${config.jwtSecret || DEFAULT_JWT_SECRET}
 
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
@@ -186,7 +197,10 @@ router.get('/current', async (req: Request, res: Response) => {
     const envPath = getEnvPath();
 
     if (!existsSync(envPath)) {
-      return res.json({ configured: false });
+      return res.json({ 
+        configured: false,
+        jwtSecret: DEFAULT_JWT_SECRET, // 返回默认值
+      });
     }
 
     const envContent = readFileSync(envPath, 'utf-8');
@@ -208,7 +222,7 @@ router.get('/current', async (req: Request, res: Response) => {
       configured: true,
       config: {
         zhipuApiKey: config.ZHIPU_API_KEY || '',
-        jwtSecret: config.JWT_SECRET || '',
+        jwtSecret: config.JWT_SECRET || DEFAULT_JWT_SECRET,
         databasePath: config.DATABASE_PATH || '',
         redisHost: config.REDIS_HOST || '',
         redisPort: config.REDIS_PORT || '',
